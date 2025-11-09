@@ -1,0 +1,295 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f5f7fa;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #3B82F6 0%, #0D9488 50%, #3B82F6 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #60A5FA 0%, #14B8A6 50%, #60A5FA 100%);
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-15px) rotate(2deg);
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-25%);
+  }
+}
+
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes dreamyGlow {
+  0%, 100% {
+    box-shadow: 0 8px 32px rgba(167, 139, 250, 0.15);
+  }
+  50% {
+    box-shadow: 0 12px 48px rgba(167, 139, 250, 0.3);
+  }
+}
+
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes gradient {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes shine {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+.slide-in {
+  animation: slideIn 0.4s ease-out;
+}
+
+.scale-in {
+  animation: scaleIn 0.3s ease-out;
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, [role="button"] {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Custom scrollbar with dreamy gradient */
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(135deg, #A78BFA 0%, #C4B5FD 50%, #6EE7B7 100%);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(135deg, #8B5CF6 0%, #A78BFA 50%, #34D399 100%);
+}
+
+/* Dreamy background gradient */
+.dreamy-bg {
+  background: linear-gradient(135deg, #FDF4FF 0%, #F0FDF4 25%, #EFF6FF 50%, #FDF2F8 75%, #FDF4FF 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+.dreamy-bg-dark {
+  background: linear-gradient(135deg, #1E1B2E 0%, #1A1F2E 25%, #1E1F2E 50%, #1E1B2E 75%, #1E1B2E 100%);
+  background-size: 400% 400%;
+  animation: gradientShift 20s ease infinite;
+}
+
+/* Global Autofill Fix - Prevent blue background on autofill/dropdown selection */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+input:-webkit-autofill:selected,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: inherit !important;
+  background-color: transparent !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  caret-color: inherit !important;
+}
+
+/* Prevent browser default selection colors */
+input::selection,
+textarea::selection,
+select::selection {
+  background-color: rgba(139, 92, 246, 0.3) !important;
+  color: inherit !important;
+}
+
+input::-moz-selection,
+textarea::-moz-selection,
+select::-moz-selection {
+  background-color: rgba(139, 92, 246, 0.3) !important;
+  color: inherit !important;
+}
+
+/* Dark mode autofill fix */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus,
+[data-theme="dark"] input:-webkit-autofill:active,
+[data-theme="dark"] textarea:-webkit-autofill,
+[data-theme="dark"] textarea:-webkit-autofill:hover,
+[data-theme="dark"] textarea:-webkit-autofill:focus,
+[data-theme="dark"] textarea:-webkit-autofill:active,
+[data-theme="dark"] select:-webkit-autofill,
+[data-theme="dark"] select:-webkit-autofill:hover,
+[data-theme="dark"] select:-webkit-autofill:focus,
+[data-theme="dark"] select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px rgba(30, 41, 59, 0.8) inset !important;
+  -webkit-text-fill-color: #F1F5F9 !important;
+  background-color: rgba(30, 41, 59, 0.8) !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  caret-color: #F1F5F9 !important;
+}
+
+/* Material-UI Input Autofill Fix */
+.MuiInputBase-input:-webkit-autofill,
+.MuiInputBase-input:-webkit-autofill:hover,
+.MuiInputBase-input:-webkit-autofill:focus,
+.MuiInputBase-input:-webkit-autofill:active,
+.MuiOutlinedInput-input:-webkit-autofill,
+.MuiOutlinedInput-input:-webkit-autofill:hover,
+.MuiOutlinedInput-input:-webkit-autofill:focus,
+.MuiOutlinedInput-input:-webkit-autofill:active,
+.MuiFilledInput-input:-webkit-autofill,
+.MuiFilledInput-input:-webkit-autofill:hover,
+.MuiFilledInput-input:-webkit-autofill:focus,
+.MuiFilledInput-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: inherit !important;
+  background-color: transparent !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+  caret-color: inherit !important;
+}
+
+/* Material-UI Select Autofill Fix */
+.MuiSelect-select:-webkit-autofill,
+.MuiSelect-select:-webkit-autofill:hover,
+.MuiSelect-select:-webkit-autofill:focus,
+.MuiSelect-select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: inherit !important;
+  background-color: transparent !important;
+  transition: background-color 5000s ease-in-out 0s !important;
+}
+
+/* Prevent blue outline on focus for Material-UI inputs */
+.MuiOutlinedInput-root:focus-within .MuiOutlinedInput-notchedOutline,
+.MuiFilledInput-root:focus-within::after,
+.MuiInput-root:focus-within::after {
+  border-color: inherit !important;
+}

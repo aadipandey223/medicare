@@ -1,0 +1,323 @@
+from flask import Flask, request, jsonify
+from sqlalchemy.orm import sessionmaker
+from models import Doctor, Patient, Consultation, Report, Message
+from sqlalchemy import create_engine
+import os
+import bcrypt
+import jwt
+from datetime import datetime, timedelta
+
+app = Flask(__name__)
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///medicare.db")
+JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
+JWT_EXPIRATION = 7 * 24 * 60 * 60
+engine = create_engine(DATABASE_URL, future=True)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
+
+def create_token(user_id, role):
+    payload = {
+        'user_id': user_id,
+        'role': role,
+        'exp': datetime.utcnow() + timedelta(seconds=JWT_EXPIRATION),
+        'iat': datetime.utcnow()
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    data = request.get_json(force=True, silent=True) or {}
+    email = data.get('email', '').strip()
+    password = data.get('password', '').strip()
+    if not email or not password:
+        return jsonify({'error': 'Email and password required'}), 400
+    db = SessionLocal()
+    try:
+        # Check doctor first
+        doctor = db.query(Doctor).filter(Doctor.email == email).first()
+        if doctor and bcrypt.checkpw(password.encode(), doctor.password_hash.encode()):
+            token = create_token(doctor.id, 'doctor')
+            return jsonify({'token': token, 'role': 'doctor', 'user': {'id': doctor.id, 'name': doctor.name, 'email': doctor.email}}), 200
+        # Check patient
+        patient = db.query(Patient).filter(Patient.email == email).first()
+        if patient and bcrypt.checkpw(password.encode(), patient.password_hash.encode()):
+            token = create_token(patient.id, 'patient')
+            return jsonify({'token': token, 'role': 'patient', 'user': {'id': patient.id, 'name': patient.name, 'email': patient.email}}), 200
+        return jsonify({'error': 'Invalid credentials'}), 401
+    finally:
+        db.close()
+
+# Doctor dashboard stats endpoint
+@app.route('/api/doctor/dashboard', methods=['GET'])
+def doctor_dashboard():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+        doctor_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        new_requests = db.query(Consultation).filter_by(doctor_id=doctor_id, status='pending').count()
+        active_consultations = db.query(Consultation).filter_by(doctor_id=doctor_id, status='active').count()
+        total_patients = db.query(Consultation).filter_by(doctor_id=doctor_id).distinct(Consultation.patient_id).count()
+        reports_awaiting = db.query(Report).join(Consultation, Report.patient_id == Consultation.patient_id).filter(Consultation.doctor_id == doctor_id, Report.status == 'pending').count()
+        return jsonify({
+            'new_requests': new_requests,
+            'active_consultations': active_consultations,
+            'total_patients': total_patients,
+            'reports_awaiting': reports_awaiting
+        })
+    finally:
+        db.close()
+
+# Doctor patient request queue endpoint
+@app.route('/api/doctor/requests', methods=['GET'])
+def doctor_requests():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+        doctor_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        requests = db.query(Consultation).filter_by(doctor_id=doctor_id, status='pending').all()
+        result = []
+        for req in requests:
+            patient = db.query(Patient).filter_by(id=req.patient_id).first()
+            result.append({
+                'id': req.id,
+                'patient_name': patient.name if patient else '',
+                'age': patient.age if patient else '',
+                'gender': patient.gender if patient else '',
+                'primary_symptoms': req.summary or '',
+                'status': req.status
+            })
+        return jsonify(result)
+    finally:
+        db.close()
+
+# Doctor active consultations endpoint
+@app.route('/api/doctor/consultations', methods=['GET'])
+def doctor_consultations():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+        doctor_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        consultations = db.query(Consultation).filter_by(doctor_id=doctor_id, status='active').all()
+        result = []
+        for cons in consultations:
+            patient = db.query(Patient).filter_by(id=cons.patient_id).first()
+            result.append({
+                'id': cons.id,
+                'patient_name': patient.name if patient else '',
+                'started_at': cons.started_at,
+                'status': cons.status
+            })
+        return jsonify(result)
+    finally:
+        db.close()
+
+# Doctor reports endpoint
+@app.route('/api/doctor/reports', methods=['GET'])
+def doctor_reports():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+        doctor_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        reports = db.query(Report).join(Consultation, Report.patient_id == Consultation.patient_id).filter(Consultation.doctor_id == doctor_id).all()
+        result = []
+        for rep in reports:
+            patient = db.query(Patient).filter_by(id=rep.patient_id).first()
+            result.append({
+                'id': rep.id,
+                'file_name': rep.file_name,
+                'file_url': rep.file_url,
+                'uploaded_at': rep.uploaded_at,
+                'status': rep.status,
+                'patient_name': patient.name if patient else ''
+            })
+        return jsonify(result)
+    finally:
+        db.close()
+
+# Chat/messages endpoint for a consultation
+@app.route('/api/consultation/<int:consultation_id>/messages', methods=['GET', 'POST'])
+def consultation_messages(consultation_id):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        user_id = payload.get('user_id')
+        role = payload.get('role')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        if request.method == 'GET':
+            messages = db.query(Message).filter_by(consultation_id=consultation_id).order_by(Message.sent_at).all()
+            result = []
+            for msg in messages:
+                result.append({
+                    'id': msg.id,
+                    'sender_type': msg.sender_type,
+                    'sender_id': msg.sender_id,
+                    'content': msg.content,
+                    'sent_at': msg.sent_at
+                })
+            return jsonify(result)
+        elif request.method == 'POST':
+            data = request.get_json(force=True, silent=True) or {}
+            content = data.get('content', '').strip()
+            if not content:
+                return jsonify({'error': 'Message content required'}), 400
+            message = Message(
+                consultation_id=consultation_id,
+                sender_type=role,
+                sender_id=user_id,
+                content=content,
+                sent_at=datetime.utcnow()
+            )
+            db.add(message)
+            db.commit()
+            return jsonify({'success': True, 'message_id': message.id})
+    finally:
+        db.close()
+
+# Patient dashboard stats endpoint
+@app.route('/api/patient/dashboard', methods=['GET'])
+def patient_dashboard():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'patient':
+            return jsonify({'error': 'Unauthorized'}), 403
+        patient_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        total_consultations = db.query(Consultation).filter_by(patient_id=patient_id).count()
+        active_consultations = db.query(Consultation).filter_by(patient_id=patient_id, status='active').count()
+        reports_uploaded = db.query(Report).filter_by(patient_id=patient_id).count()
+        reports_pending = db.query(Report).filter_by(patient_id=patient_id, status='pending').count()
+        return jsonify({
+            'total_consultations': total_consultations,
+            'active_consultations': active_consultations,
+            'reports_uploaded': reports_uploaded,
+            'reports_pending': reports_pending
+        })
+    finally:
+        db.close()
+
+# Patient reports endpoint
+@app.route('/api/patient/reports', methods=['GET'])
+def patient_reports():
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'patient':
+            return jsonify({'error': 'Unauthorized'}), 403
+        patient_id = payload.get('user_id')
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        reports = db.query(Report).filter_by(patient_id=patient_id).all()
+        result = []
+        for rep in reports:
+            result.append({
+                'id': rep.id,
+                'file_name': rep.file_name,
+                'file_url': rep.file_url,
+                'uploaded_at': rep.uploaded_at,
+                'status': rep.status,
+                'notes': rep.notes
+            })
+        return jsonify(result)
+    finally:
+        db.close()
+
+# Start a consultation (doctor accepts request)
+@app.route('/api/consultation/<int:consultation_id>/start', methods=['POST'])
+def start_consultation(consultation_id):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        cons = db.query(Consultation).filter_by(id=consultation_id).first()
+        if not cons:
+            return jsonify({'error': 'Consultation not found'}), 404
+        cons.status = 'active'
+        cons.started_at = datetime.utcnow()
+        db.commit()
+        return jsonify({'success': True})
+    finally:
+        db.close()
+
+# End a consultation
+@app.route('/api/consultation/<int:consultation_id>/end', methods=['POST'])
+def end_consultation(consultation_id):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        cons = db.query(Consultation).filter_by(id=consultation_id).first()
+        if not cons:
+            return jsonify({'error': 'Consultation not found'}), 404
+        cons.status = 'ended'
+        cons.ended_at = datetime.utcnow()
+        db.commit()
+        return jsonify({'success': True})
+    finally:
+        db.close()
+
+# Update report status (doctor reviews)
+@app.route('/api/report/<int:report_id>/review', methods=['POST'])
+def review_report(report_id):
+    token = request.headers.get('Authorization', '').replace('Bearer ', '')
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+        if payload.get('role') != 'doctor':
+            return jsonify({'error': 'Unauthorized'}), 403
+    except Exception as e:
+        return jsonify({'error': 'Invalid token'}), 401
+    db = SessionLocal()
+    try:
+        rep = db.query(Report).filter_by(id=report_id).first()
+        if not rep:
+            return jsonify({'error': 'Report not found'}), 404
+        rep.status = 'reviewed'
+        rep.notes = request.get_json(force=True, silent=True).get('notes', '')
+        db.commit()
+        return jsonify({'success': True})
+    finally:
+        db.close()
+
+if __name__ == "__main__":
+    app.run(debug=True)
