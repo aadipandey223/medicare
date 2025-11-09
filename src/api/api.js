@@ -38,20 +38,24 @@ export const apiRequest = async (endpoint, options = {}) => {
 
     // Handle 401 Unauthorized - token expired or invalid
     if (response.status === 401) {
-      // Clear auth data
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
-      sessionStorage.removeItem('role');
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('role');
+      // Only clear auth and redirect if not already on auth page
+      const currentPath = window.location.pathname;
+      if (!currentPath.includes('/auth')) {
+        // Clear auth data
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('role');
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('role');
+        
+        // Redirect to login after a short delay
+        setTimeout(() => {
+          window.location.href = '/auth';
+        }, 1000);
+      }
       
-      // Redirect to login after a short delay
-      setTimeout(() => {
-        window.location.href = '/auth';
-      }, 1000);
-      
-      throw new Error('Session expired. Please login again.');
+      throw new Error('Unauthorized. Please login to continue.');
     }
 
     let data;

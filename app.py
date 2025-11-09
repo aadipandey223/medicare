@@ -373,7 +373,8 @@ if os.getenv("FLASK_ENV") == "production":
          origins=is_origin_allowed, 
          supports_credentials=True, 
          allow_headers=["Content-Type", "Authorization"],
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+         expose_headers=["Content-Type"])
 else:
     # Development: Allow all origins
     CORS(app)
@@ -679,6 +680,7 @@ def serve_favicon():
 
 @app.get("/<path:path>")
 def serve_frontend(path: str):
+    # Don't serve frontend for API routes - let them 404 naturally if not found
     if path.startswith("api/"):
         abort(404)
     if not FRONTEND_DIST.exists():
@@ -721,6 +723,16 @@ def appointment_to_dict(a: Appointment) -> dict:
 @app.get("/api/health")
 def health():
     return jsonify({"status": "ok"})
+
+@app.get("/api")
+@app.route("/api", methods=["GET"])
+def api_root():
+    return jsonify({"message": "MediCare API", "version": "1.0", "endpoints": ["/api/health", "/api/doctors", "/api/auth/login"]})
+
+# Simple test route
+@app.route("/test")
+def test():
+    return jsonify({"status": "working", "message": "Flask app is running!"})
 
 
 # Routes: Authentication
