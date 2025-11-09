@@ -29,6 +29,11 @@ export const apiRequest = async (endpoint, options = {}) => {
   };
 
   try {
+    // Log API call for debugging (remove in production if needed)
+    if (import.meta.env.DEV) {
+      console.log(`[API] ${options.method || 'GET'} ${API_BASE_URL}${endpoint}`);
+    }
+    
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
     // Handle 401 Unauthorized - token expired or invalid
@@ -72,7 +77,8 @@ export const apiRequest = async (endpoint, options = {}) => {
     }
     // Handle network errors
     if (error.name === 'TypeError' && error.message.includes('fetch')) {
-      throw new Error('Network error. Please check your connection.');
+      console.error('[API Error] Failed to fetch:', `${API_BASE_URL}${endpoint}`, error);
+      throw new Error(`Network error: Cannot connect to backend at ${API_BASE_URL}. Please check if the backend is running and CORS is configured.`);
     }
     throw error;
   }

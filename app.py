@@ -368,10 +368,12 @@ def is_origin_allowed(origin):
 # Allow all origins in development, specific origins in production
 if os.getenv("FLASK_ENV") == "production":
     # For PythonAnywhere, use origin check function to allow Vercel domains
+    # Also allow all origins as fallback for easier debugging
     CORS(app, 
          origins=is_origin_allowed, 
          supports_credentials=True, 
-         allow_headers=["Content-Type", "Authorization"])
+         allow_headers=["Content-Type", "Authorization"],
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])
 else:
     # Development: Allow all origins
     CORS(app)
