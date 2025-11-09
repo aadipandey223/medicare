@@ -2,6 +2,17 @@
 
 A comprehensive healthcare platform connecting patients with doctors, featuring real-time consultations, document management, and AI-powered health insights.
 
+## ✨ Features
+
+- 🔐 **Authentication** - Email/Password + Google OAuth
+- 👥 **Multi-Role System** - Patient, Doctor, and Admin dashboards
+- 💬 **Real-time Consultations** - Live chat between patients and doctors
+- 📄 **Document Management** - Secure file uploads with cloud storage
+- ⭐ **Rating System** - Patient feedback and doctor ratings
+- 🔔 **Notifications** - Real-time updates for consultations and messages
+- 🎨 **Modern UI** - Material-UI with dark mode support
+- 🤖 **AI Health Analysis** - Symptom analysis and health recommendations
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -20,57 +31,31 @@ cd medicare
 2. **Backend Setup**
 ```bash
 pip install -r requirements.txt
-python scripts/create_admin.py  # Create admin user
-python app.py  # Start backend server
+python scripts/create_admin.py  # Create admin user (optional)
+python app.py  # Start backend server (runs on http://localhost:5000)
 ```
 
 3. **Frontend Setup**
 ```bash
 npm install
-npm run dev  # Start development server
+npm run dev  # Start development server (runs on http://localhost:3000)
 ```
 
 ## 📁 Project Structure
 
 ```
 medicare/
-├── backend/              # Backend files
-│   ├── app.py           # Main Flask application
-│   ├── requirements.txt # Python dependencies
-│   ├── Procfile         # Production server config
-│   └── render.yaml      # Render deployment config
-├── src/                 # Frontend React application
-│   ├── api/            # API client functions
-│   ├── components/     # Reusable components
-│   ├── context/        # React contexts
-│   ├── pages/          # Page components
-│   ├── services/       # External services
-│   └── utils/          # Utility functions
-├── docs/               # Documentation
-├── scripts/            # Utility scripts
-├── package.json        # Node.js dependencies
-├── vite.config.js      # Vite configuration
-└── vercel.json         # Vercel deployment config
+├── app.py              # Flask backend application
+├── requirements.txt    # Python dependencies
+├── src/                # React frontend application
+│   ├── api/           # API client functions
+│   ├── components/    # Reusable components
+│   ├── pages/         # Page components
+│   └── services/      # External services
+├── docs/              # Documentation
+├── scripts/           # Utility scripts
+└── package.json       # Node.js dependencies
 ```
-
-## 🎯 Features
-
-- ✅ User Authentication (Email/Password + Google OAuth)
-- ✅ Patient Dashboard
-- ✅ Doctor Dashboard
-- ✅ Admin Portal
-- ✅ Real-time Consultation Chat
-- ✅ Document Upload & Management
-- ✅ Rating & Feedback System
-- ✅ Profile Viewing
-- ✅ Notification System
-- ✅ Password Reset (Admin-managed)
-
-## 📚 Documentation
-
-- [Deployment Guide](DEPLOYMENT_GUIDE.md) - Deploy to production
-- [Production Readiness](PRODUCTION_READINESS_CHECKLIST.md) - Pre-deployment checklist
-- [Quick Deploy](QUICK_DEPLOY.md) - 5-minute deployment guide
 
 ## 🔧 Environment Variables
 
@@ -90,15 +75,22 @@ VITE_SUPABASE_URL=your-supabase-url
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
 
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18 + Vite + Material-UI
+- **Backend**: Flask + SQLAlchemy + JWT
+- **Database**: SQLite / PostgreSQL
+- **Storage**: Supabase Storage
+- **Auth**: Google OAuth + Email/Password
+
 ## 🚀 Deployment
 
-See [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md) for detailed deployment instructions.
+The project is configured for deployment on:
+- **Frontend**: Vercel
+- **Backend**: Render
+- **Database**: PostgreSQL
 
-**Quick Deploy:**
-1. Push code to GitHub
-2. Deploy backend to Render
-3. Deploy frontend to Vercel
-4. Configure environment variables
+See `docs/` folder for detailed deployment guides.
 
 ## 📝 License
 
@@ -107,4 +99,3 @@ MIT License
 ## 👥 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
