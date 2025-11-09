@@ -29,7 +29,11 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import BackButton from '../components/BackButton';
 
-const API_BASE_URL = '/api';
+// Get API base URL from environment
+const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = rawApiBase.endsWith('/api')
+  ? rawApiBase
+  : `${rawApiBase.replace(/\/$/, '')}/api`;
 
 function DoctorProfile() {
   const { doctorId } = useParams();

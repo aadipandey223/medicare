@@ -50,7 +50,11 @@ import { useTheme } from '../context/ThemeContext';
 import BackButton from '../components/BackButton';
 import { useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = '/api';
+// Get API base URL from environment
+const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+const API_BASE_URL = rawApiBase.endsWith('/api')
+  ? rawApiBase
+  : `${rawApiBase.replace(/\/$/, '')}/api`;
 
 function Consult() {
   const navigate = useNavigate();

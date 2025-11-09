@@ -19,13 +19,19 @@ function Doctors() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  // Get API base URL from environment
+  const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+  const API_BASE_URL = rawApiBase.endsWith('/api')
+    ? rawApiBase
+    : `${rawApiBase.replace(/\/$/, '')}/api`;
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         
         // Fetch doctors
-        const doctorsResponse = await fetch('/api/doctors');
+        const doctorsResponse = await fetch(`${API_BASE_URL}/doctors`);
         if (!doctorsResponse.ok) {
           throw new Error('Failed to fetch doctors');
         }
@@ -36,7 +42,7 @@ function Doctors() {
         const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
         if (token) {
           try {
-            const consultationsResponse = await fetch('/api/consultation/active', {
+            const consultationsResponse = await fetch(`${API_BASE_URL}/consultation/active`, {
               headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'
