@@ -87,8 +87,34 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 The project is configured for deployment on:
 - **Frontend**: Vercel
-- **Backend**: Render
-- **Database**: PostgreSQL
+- **Backend**: PythonAnywhere (or Render)
+- **Database**: SQLite (PythonAnywhere) / PostgreSQL (Render)
+
+### Quick Deployment Steps
+
+**1. Backend (PythonAnywhere):**
+- Upload `app.py`, `requirements.txt` to PythonAnywhere
+- Set environment variables in PythonAnywhere dashboard:
+  ```
+  FLASK_ENV=production
+  JWT_SECRET=your-secret-key
+  DATABASE_URL=sqlite:///medicare.db
+  SUPABASE_URL=your-supabase-url
+  SUPABASE_SERVICE_KEY=your-service-key
+  FRONTEND_URL=https://your-vercel-app.vercel.app
+  ```
+- Configure WSGI file to point to `app.py`
+- Your backend URL: `https://aadipandey2121.pythonanywhere.com`
+
+**2. Frontend (Vercel):**
+- Connect GitHub repo to Vercel
+- Set environment variables in Vercel dashboard:
+  ```
+  VITE_API_URL=https://aadipandey2121.pythonanywhere.com/api
+  VITE_SUPABASE_URL=your-supabase-url
+  VITE_SUPABASE_ANON_KEY=your-anon-key
+  ```
+- Deploy automatically on push
 
 See `docs/` folder for detailed deployment guides.
 

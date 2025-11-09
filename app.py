@@ -350,9 +350,28 @@ ALLOWED_ORIGINS = [
 if FRONTEND_URL:
     ALLOWED_ORIGINS.append(FRONTEND_URL)
 
+# Function to check if origin is allowed (for Vercel wildcard support)
+def is_origin_allowed(origin):
+    if not origin:
+        return False
+    # Allow localhost
+    if origin.startswith("http://localhost"):
+        return True
+    # Allow Vercel domains
+    if ".vercel.app" in origin:
+        return True
+    # Allow custom frontend URL
+    if FRONTEND_URL and origin.startswith(FRONTEND_URL):
+        return True
+    return origin in ALLOWED_ORIGINS
+
 # Allow all origins in development, specific origins in production
 if os.getenv("FLASK_ENV") == "production":
-    CORS(app, origins=ALLOWED_ORIGINS, supports_credentials=True)
+    # For PythonAnywhere, use origin check function to allow Vercel domains
+    CORS(app, 
+         origins=is_origin_allowed, 
+         supports_credentials=True, 
+         allow_headers=["Content-Type", "Authorization"])
 else:
     # Development: Allow all origins
     CORS(app)
