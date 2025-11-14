@@ -85,38 +85,124 @@ VITE_SUPABASE_ANON_KEY=your-anon-key
 
 ## 🚀 Deployment
 
-The project is configured for deployment on:
-- **Frontend**: Vercel
-- **Backend**: PythonAnywhere (or Render)
-- **Database**: SQLite (PythonAnywhere) / PostgreSQL (Render)
+The project is ready for deployment on multiple platforms:
 
-### Quick Deployment Steps
+### Deploy to Vercel (Recommended for Full-Stack)
 
-**1. Backend (PythonAnywhere):**
-- Upload `app.py`, `requirements.txt` to PythonAnywhere
-- Set environment variables in PythonAnywhere dashboard:
-  ```
-  FLASK_ENV=production
-  JWT_SECRET=your-secret-key
-  DATABASE_URL=sqlite:///medicare.db
-  SUPABASE_URL=your-supabase-url
-  SUPABASE_SERVICE_KEY=your-service-key
-  FRONTEND_URL=https://your-vercel-app.vercel.app
-  ```
-- Configure WSGI file to point to `app.py`
-- Your backend URL: `https://aadipandey2121.pythonanywhere.com`
+1. **Install Vercel CLI:**
+```bash
+npm install -g vercel
+```
 
-**2. Frontend (Vercel):**
-- Connect GitHub repo to Vercel
-- Set environment variables in Vercel dashboard:
-  ```
-  VITE_API_URL=https://aadipandey2121.pythonanywhere.com/api
-  VITE_SUPABASE_URL=your-supabase-url
-  VITE_SUPABASE_ANON_KEY=your-anon-key
-  ```
-- Deploy automatically on push
+2. **Deploy:**
+```bash
+vercel
+```
 
-See `docs/` folder for detailed deployment guides.
+3. **Set Environment Variables in Vercel Dashboard:**
+```
+SECRET_KEY=your-secret-key
+JWT_SECRET=your-jwt-secret
+GEMINI_API_KEY=your-gemini-api-key
+SUPABASE_URL=your-supabase-url
+SUPABASE_SERVICE_KEY=your-supabase-key
+DATABASE_URL=your-database-url
+```
+
+### Deploy to Render
+
+1. **Connect GitHub Repository:**
+   - Go to [render.com](https://render.com)
+   - Connect your GitHub account
+   - Select the medicare repository
+
+2. **Backend Service:**
+   - Click "New +" → "Web Service"
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `gunicorn app:app --bind 0.0.0.0:$PORT`
+   - Environment: Python 3.11
+
+3. **Frontend Service:**
+   - Click "New +" → "Static Site"
+   - Build Command: `npm install && npm run build`
+   - Publish Directory: `dist`
+
+4. **Set Environment Variables:**
+   - Add all required variables from `.env` file
+
+### Deploy to Heroku
+
+1. **Install Heroku CLI and Login:**
+```bash
+npm install -g heroku
+heroku login
+```
+
+2. **Create Heroku App:**
+```bash
+heroku create medicare-app
+```
+
+3. **Add PostgreSQL:**
+```bash
+heroku addons:create heroku-postgresql:mini
+```
+
+4. **Set Environment Variables:**
+```bash
+heroku config:set GEMINI_API_KEY=your-key
+heroku config:set JWT_SECRET=your-secret
+heroku config:set SECRET_KEY=your-secret
+heroku config:set SUPABASE_URL=your-url
+heroku config:set SUPABASE_SERVICE_KEY=your-key
+```
+
+5. **Deploy:**
+```bash
+git push heroku main
+heroku open
+```
+
+### Deploy Frontend to Netlify
+
+1. **Build the frontend:**
+```bash
+npm run build
+```
+
+2. **Deploy:**
+   - Drag and drop `dist` folder to [netlify.com](https://netlify.com)
+   - Or use Netlify CLI:
+```bash
+npm install -g netlify-cli
+netlify deploy --prod
+```
+
+3. **Set Environment Variables:**
+   - Add `VITE_API_URL` pointing to your backend
+
+### GitHub Pages (Frontend Only)
+
+1. **Install gh-pages:**
+```bash
+npm install --save-dev gh-pages
+```
+
+2. **Update package.json:**
+```json
+{
+  "homepage": "https://aadipandey223.github.io/medicare",
+  "scripts": {
+    "predeploy": "npm run build",
+    "deploy": "gh-pages -d dist"
+  }
+}
+```
+
+3. **Deploy:**
+```bash
+npm run deploy
+```
 
 ## 📝 License
 

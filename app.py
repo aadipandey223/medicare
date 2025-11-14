@@ -50,6 +50,14 @@ except ImportError:
     SUPABASE_AVAILABLE = False
     logger.warning("Supabase not installed. Run: pip install supabase")
 
+try:
+    from llm_service import get_symptom_analyzer
+    LLM_SERVICE_AVAILABLE = True
+    logger.info("LLM service loaded successfully")
+except ImportError as e:
+    LLM_SERVICE_AVAILABLE = False
+    logger.warning(f"LLM service not available: {e}")
+
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///medicare.db")
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
@@ -398,6 +406,27 @@ class Notification(Base):
             'message': self.message,
             'type': self.type,
             'is_read': self.is_read,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+class BlockedAILog(Base):
+    __tablename__ = "blocked_ai_logs"
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    symptoms = Column(Text, nullable=False)
+    raw_response = Column(Text, nullable=True)
+    reason = Column(String(50), nullable=True)
+    model = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'symptoms': self.symptoms,
+            'reason': self.reason,
+            'model': self.model,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
 
@@ -2736,6 +2765,18 @@ def request_consultation():
     if document_ids and not isinstance(document_ids, list):
         return jsonify({"error": "document_ids must be a list"}), 400
     
+    # Auto-generate LLM summary if symptoms provided and llm_summary is empty
+    if symptoms and not llm_summary and LLM_SERVICE_AVAILABLE:
+        try:
+            analyzer = get_symptom_analyzer()
+            analysis = analyzer.analyze_symptoms(symptoms)
+            # Create a concise summary for doctor
+            llm_summary = f"[AI Analysis] Severity: {analysis.get('severity', 'unknown').upper()} | {analysis.get('summary', '')}"
+            logger.info(f"Auto-generated LLM summary for consultation request")
+        except Exception as e:
+            logger.warning(f"Failed to auto-generate LLM summary: {e}")
+            llm_summary = ""
+    
     db = SessionLocal()
     try:
         # Verify doctor exists if doctor_id provided
@@ -2868,6 +2909,68 @@ def list_doctors():
         }), 200
     finally:
         db.close()
+
+
+@app.post("/api/analyze-symptoms")
+def analyze_symptoms():
+    """
+    AI-powered symptom analysis using Phi-4-mini-instruct
+    
+    Request body:
+    {
+        "symptoms": "description of symptoms",
+        "age": 25 (optional),
+        "gender": "male/female/other" (optional)
+    }
+    
+    Returns structured health analysis
+    """
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json(force=True, silent=True) or {}
+    symptoms = data.get('symptoms', '').strip()
+    
+    if not symptoms:
+        return jsonify({"error": "Symptoms description is required"}), 400
+    
+    if len(symptoms) < 10:
+        return jsonify({"error": "Please provide more detailed symptom description (minimum 10 characters)"}), 400
+    
+    if not LLM_SERVICE_AVAILABLE:
+        logger.warning("LLM service not available, returning error")
+        return jsonify({
+            "error": "AI service not available",
+            "message": "AI analysis service is not configured. Please contact administrator."
+        }), 503
+    
+    try:
+        # Get optional patient context
+        age = data.get('age')
+        gender = data.get('gender')
+        
+        # Get LLM analyzer and perform analysis
+        analyzer = get_symptom_analyzer()
+        analysis_result = analyzer.analyze_symptoms(
+            symptoms=symptoms,
+            patient_age=age,
+            patient_gender=gender
+        )
+        
+        # Add metadata
+        analysis_result['analysis_available'] = True
+        analysis_result['analyzed_at'] = datetime.now(timezone.utc).isoformat()
+        
+        logger.info(f"Symptom analysis completed for user {user.id}")
+        return jsonify(analysis_result), 200
+        
+    except Exception as e:
+        logger.error(f"Error in symptom analysis: {e}", exc_info=True)
+        return jsonify({
+            "error": "Failed to analyze symptoms",
+            "message": "An error occurred during analysis. Please try again or consult a doctor directly."
+        }), 500
 
 
 @app.get("/api/doctors/<int:doctor_id>")
@@ -4026,4 +4129,6 @@ with app.app_context():
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    debug_mode = os.getenv("FLASK_ENV") != "production"
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)
+

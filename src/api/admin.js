@@ -22,7 +22,7 @@ const handleResponse = async (response) => {
 // Dashboard Stats
 export const getDashboardStats = async () => {
   const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -30,7 +30,7 @@ export const getDashboardStats = async () => {
 // Doctor Management
 export const listDoctors = async () => {
   const response = await fetch(`${API_BASE_URL}/admin/doctors`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -38,7 +38,7 @@ export const listDoctors = async () => {
 export const addDoctor = async (doctorData) => {
   const response = await fetch(`${API_BASE_URL}/admin/doctors`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify(doctorData),
   });
   return handleResponse(response);
@@ -47,7 +47,7 @@ export const addDoctor = async (doctorData) => {
 export const updateDoctor = async (doctorId, updates) => {
   const response = await fetch(`${API_BASE_URL}/admin/doctors/${doctorId}`, {
     method: 'PATCH',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify(updates),
   });
   return handleResponse(response);
@@ -56,7 +56,7 @@ export const updateDoctor = async (doctorId, updates) => {
 export const deleteDoctor = async (doctorId) => {
   const response = await fetch(`${API_BASE_URL}/admin/doctors/${doctorId}`, {
     method: 'DELETE',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -64,7 +64,7 @@ export const deleteDoctor = async (doctorId) => {
 // Patient Management
 export const listPatients = async () => {
   const response = await fetch(`${API_BASE_URL}/admin/patients`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -72,7 +72,7 @@ export const listPatients = async () => {
 export const deletePatient = async (patientId) => {
   const response = await fetch(`${API_BASE_URL}/admin/patients/${patientId}`, {
     method: 'DELETE',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -80,7 +80,7 @@ export const deletePatient = async (patientId) => {
 export const resetPatientPassword = async (patientId, newPassword) => {
   const response = await fetch(`${API_BASE_URL}/admin/patients/${patientId}/password`, {
     method: 'PATCH',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify({ password: newPassword }),
   });
   return handleResponse(response);
@@ -89,7 +89,7 @@ export const resetPatientPassword = async (patientId, newPassword) => {
 // Password Reset Requests
 export const listPasswordResets = async () => {
   const response = await fetch(`${API_BASE_URL}/admin/password-resets`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -97,7 +97,7 @@ export const listPasswordResets = async () => {
 export const resolvePasswordReset = async (resetId, action, password, reason) => {
   const response = await fetch(`${API_BASE_URL}/admin/password-resets/${resetId}`, {
     method: 'PATCH',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify({ action, password, reason }),
   });
   return handleResponse(response);
@@ -106,7 +106,7 @@ export const resolvePasswordReset = async (resetId, action, password, reason) =>
 // Audit Logs
 export const getAuditLogs = async () => {
   const response = await fetch(`${API_BASE_URL}/admin/audit-logs`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
