@@ -29,6 +29,7 @@ import {
   LocalHospital,
   Campaign,
   AssignmentTurnedIn,
+  PersonAdd,
 } from '@mui/icons-material';
 import {
   fetchNotifications,
@@ -36,24 +37,24 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   deleteNotification,
-} from '../api/notifications';
-import { useTheme } from '../context/ThemeContext';
+} from '../../api/notifications';
+import { useTheme } from '../../context/ThemeContext';
 
 const TYPE_CONFIG = {
-  consult_request: { icon: Chat, color: '#2196F3', label: 'Consultation' },
+  consult_request: { icon: PersonAdd, color: '#2196F3', label: 'New Request' },
   consult_accept: { icon: LocalHospital, color: '#4CAF50', label: 'Consultation' },
   consult_reject: { icon: LocalHospital, color: '#F44336', label: 'Consultation' },
   consult_message: { icon: Chat, color: '#00BCD4', label: 'Message' },
   document_upload: { icon: UploadFile, color: '#673AB7', label: 'Document' },
   analysis: { icon: Psychology, color: '#00BCD4', label: 'Analysis' },
   reminder: { icon: LocalHospital, color: '#FF9800', label: 'Reminder' },
-  tip: { icon: Campaign, color: '#9C27B0', label: 'Health Tip' },
+  tip: { icon: Campaign, color: '#9C27B0', label: 'Info' },
   general: { icon: AssignmentTurnedIn, color: '#607D8B', label: 'General' },
 };
 
 const getConfig = (type) => TYPE_CONFIG[type] || TYPE_CONFIG.general;
 
-function Notifications() {
+function DoctorNotifications() {
   const { currentTheme } = useTheme();
   const isDark = currentTheme === 'dark';
   const [notifications, setNotifications] = useState([]);
@@ -157,7 +158,7 @@ function Notifications() {
         mb: 4,
         borderRadius: 3,
         textAlign: 'center',
-        background: 'linear-gradient(135deg, #FF9800 0%, #FF5722 100%)',
+        background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
         color: 'white',
       }}
     >
@@ -168,7 +169,7 @@ function Notifications() {
         Notifications
       </Typography>
       <Typography variant="body1" sx={{ opacity: 0.9 }}>
-        Stay updated with your health journey and doctor communications
+        Stay updated with patient requests and important updates
       </Typography>
     </Paper>
   );
@@ -180,32 +181,9 @@ function Notifications() {
       py: 3,
       px: { xs: 2, sm: 3 },
       overflow: 'auto',
-      background: isDark
-        ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
-        : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
-      backgroundSize: '400% 400%',
-      animation: 'gradientShift 15s ease infinite',
-      position: 'relative',
-      '&::before': {
-        content: '""',
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: isDark
-          ? 'radial-gradient(circle at 20% 50%, rgba(139, 92, 246, 0.1) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1) 0%, transparent 50%)'
-          : 'radial-gradient(circle at 20% 50%, rgba(192, 132, 252, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(244, 114, 182, 0.05) 0%, transparent 50%)',
-        pointerEvents: 'none',
-        zIndex: 0,
-      },
-      '@keyframes gradientShift': {
-        '0%': { backgroundPosition: '0% 50%' },
-        '50%': { backgroundPosition: '100% 50%' },
-        '100%': { backgroundPosition: '0% 50%' },
-      },
+      bgcolor: isDark ? '#1E1B2E' : '#FDF4FF',
     }}>
-      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '900px', mx: 'auto' }}>
+      <Box sx={{ maxWidth: '900px', mx: 'auto' }}>
         {renderHeader()}
 
         {alert && (
@@ -262,20 +240,26 @@ function Notifications() {
           sx={{ 
             borderRadius: 3, 
             mb: 3,
-            bgcolor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.9)',
-            border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(226, 232, 240, 0.8)'}`,
+            bgcolor: isDark ? 'rgba(42, 31, 61, 0.6)' : 'rgba(255, 255, 255, 0.9)',
+            border: `2px solid ${isDark ? 'rgba(196, 181, 253, 0.2)' : 'rgba(167, 139, 250, 0.2)'}`,
           }}
         >
           <Tabs
             value={tab}
             onChange={(_, v) => setTab(v)}
             centered
-            TabIndicatorProps={{ style: { height: 3 } }}
+            TabIndicatorProps={{ 
+              style: { 
+                height: 3,
+                backgroundColor: isDark ? '#A78BFA' : '#8B5CF6',
+              } 
+            }}
             sx={{
               '& .MuiTab-root': {
                 color: isDark ? '#94A3B8' : undefined,
+                fontWeight: 600,
                 '&.Mui-selected': {
-                  color: isDark ? '#A78BFA' : undefined,
+                  color: isDark ? '#A78BFA' : '#8B5CF6',
                 },
               },
             }}
@@ -290,8 +274,8 @@ function Notifications() {
           sx={{ 
             borderRadius: 3, 
             overflow: 'hidden',
-            bgcolor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.9)',
-            border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(226, 232, 240, 0.8)'}`,
+            bgcolor: isDark ? 'rgba(42, 31, 61, 0.6)' : 'rgba(255, 255, 255, 0.9)',
+            border: `2px solid ${isDark ? 'rgba(196, 181, 253, 0.2)' : 'rgba(167, 139, 250, 0.2)'}`,
           }}
         >
           {loading ? (
@@ -301,12 +285,12 @@ function Notifications() {
           ) : filteredNotifications.length === 0 ? (
             <Box sx={{ p: 6, textAlign: 'center' }}>
               <NotificationsIcon sx={{ fontSize: 60, color: isDark ? '#94A3B8' : 'text.secondary', mb: 2 }} />
-              <Typography variant="h6" sx={{ color: isDark ? '#94A3B8' : undefined }}>
+              <Typography variant="h6" sx={{ color: isDark ? '#F1F5F9' : '#111827' }}>
                 {tab === 0 ? 'No notifications yet' : 'You have no unread notifications'}
               </Typography>
-              <Typography variant="body2" sx={{ color: isDark ? '#64748B' : undefined }}>
+              <Typography variant="body2" sx={{ color: isDark ? '#94A3B8' : '#6B7280' }}>
                 {tab === 0
-                  ? 'We will notify you whenever something important happens.'
+                  ? 'We will notify you about patient requests and important updates.'
                   : 'Check back later for new updates.'}
               </Typography>
             </Box>
@@ -320,7 +304,7 @@ function Notifications() {
                     sx={{
                       p: 3,
                       bgcolor: notification.is_read 
-                        ? (isDark ? 'rgba(30, 41, 59, 0.5)' : 'white')
+                        ? (isDark ? 'rgba(30, 41, 59, 0.3)' : 'white')
                         : (isDark ? 'rgba(139, 92, 246, 0.1)' : '#F3F4F6'),
                       position: 'relative',
                       '&:hover': {
@@ -337,13 +321,13 @@ function Notifications() {
                           <Typography 
                             variant="subtitle1" 
                             fontWeight={600}
-                            sx={{ color: isDark ? '#F1F5F9' : undefined }}
+                            sx={{ color: isDark ? '#F1F5F9' : '#111827' }}
                           >
                             {notification.title}
                           </Typography>
                           <Typography 
                             variant="caption" 
-                            sx={{ color: isDark ? '#94A3B8' : undefined }}
+                            sx={{ color: isDark ? '#94A3B8' : '#6B7280' }}
                           >
                             {notification.created_at
                               ? new Date(notification.created_at).toLocaleString()
@@ -355,7 +339,7 @@ function Notifications() {
                             variant="body2" 
                             sx={{ 
                               mt: 0.5,
-                              color: isDark ? '#94A3B8' : undefined,
+                              color: isDark ? '#94A3B8' : '#6B7280',
                             }}
                           >
                             {notification.message}
@@ -375,17 +359,26 @@ function Notifications() {
                             startIcon={<Circle fontSize="small" />}
                             onClick={() => handleMarkRead(notification.id)}
                             sx={{
-                              color: isDark ? '#A78BFA' : undefined,
+                              color: isDark ? '#A78BFA' : '#8B5CF6',
                               '&:hover': {
-                                bgcolor: isDark ? 'rgba(139, 92, 246, 0.1)' : undefined,
+                                bgcolor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.1)',
                               },
                             }}
                           >
                             Mark read
                           </Button>
                         )}
-                        <IconButton color="error" onClick={() => handleDelete(notification.id)}>
-                          <Delete />
+                        <IconButton 
+                          color="error" 
+                          size="small"
+                          onClick={() => handleDelete(notification.id)}
+                          sx={{
+                            '&:hover': {
+                              bgcolor: 'rgba(239, 68, 68, 0.1)',
+                            },
+                          }}
+                        >
+                          <Delete fontSize="small" />
                         </IconButton>
                       </Box>
                     </Box>
@@ -393,7 +386,7 @@ function Notifications() {
                       <Divider 
                         sx={{ 
                           mt: 2,
-                          borderColor: isDark ? 'rgba(139, 92, 246, 0.1)' : undefined,
+                          borderColor: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(226, 232, 240, 0.5)',
                         }} 
                       />
                     )}
@@ -408,4 +401,4 @@ function Notifications() {
   );
 }
 
-export default Notifications;
+export default DoctorNotifications;

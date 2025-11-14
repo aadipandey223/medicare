@@ -1,5 +1,7 @@
 Flask==3.0.3
 Flask-CORS==4.0.1
+Flask-Limiter==3.5.0
+flask-swagger-ui==4.11.1
 SQLAlchemy==2.0.36
 pydantic==2.9.2
 python-dotenv==1.0.1
@@ -11,3 +13,4 @@ google-auth-httplib2==0.2.0
 gunicorn==21.2.0
 supabase==2.0.0
 psycopg2-binary==2.9.9
+email-validator==2.1.0

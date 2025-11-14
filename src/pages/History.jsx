@@ -180,8 +180,11 @@ function History() {
 
   return (
     <Box sx={{ 
-      minHeight: '100vh', 
-      py: 4,
+      height: '100%',
+      width: '100%',
+      py: 3,
+      px: { xs: 2, sm: 3 },
+      overflow: 'auto',
       background: isDark
         ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
         : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
@@ -207,26 +210,26 @@ function History() {
         '100%': { backgroundPosition: '0% 50%' },
       },
     }}>
-      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '900px', mx: 'auto' }}>
         <Fade in timeout={600}>
           <Box>
             {/* Header */}
             <Paper 
               elevation={0} 
               sx={{ 
-                p: 4, 
-                mb: 4, 
-                borderRadius: 3, 
+                p: 2.5, 
+                mb: 2.5, 
+                borderRadius: 2, 
                 textAlign: 'center',
                 background: 'linear-gradient(135deg, #9C27B0 0%, #673AB7 100%)',
                 color: 'white'
               }}
             >
-              <TimelineIcon sx={{ fontSize: 60, mb: 2 }} />
-              <Typography variant="h4" fontWeight="bold" gutterBottom>
+              <TimelineIcon sx={{ fontSize: 48, mb: 1.5 }} />
+              <Typography variant="h5" fontWeight="bold" gutterBottom>
                 Medical History & Timeline
               </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 Track your medical journey and health records
               </Typography>
             </Paper>
@@ -351,8 +354,8 @@ function History() {
 
             {/* Timeline */}
             {loading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
-                <CircularProgress sx={{ color: isDark ? '#8B5CF6' : undefined }} />
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                <CircularProgress sx={{ color: isDark ? '#8B5CF6' : '#6366f1' }} />
               </Box>
             ) : (
               <Paper 
@@ -481,7 +484,7 @@ function History() {
             )}
           </Box>
         </Fade>
-      </Container>
+      </Box>
     </Box>
   );
 }

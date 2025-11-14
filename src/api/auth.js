@@ -22,7 +22,8 @@ const handleResponse = async (response) => {
 
 // Helper function to get auth headers
 const getAuthHeaders = () => {
-  const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
+  // Prefer sessionStorage (tab-specific), fallback to localStorage
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -90,8 +91,25 @@ export const updateProfile = async (updates) => {
   return handleResponse(response);
 };
 
+// Request password reset
+export const forgotPassword = async (email) => {
+  const response = await fetch(`${API_BASE_URL}/auth/forgot`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ email }),
+  });
+  
+  return handleResponse(response);
+};
+
 // Logout
 export const logout = () => {
+  sessionStorage.removeItem('token');
+  sessionStorage.removeItem('user');
+  sessionStorage.removeItem('role');
   localStorage.removeItem('token');
   localStorage.removeItem('user');
+  localStorage.removeItem('role');
 };

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Box, Typography, Grid, Card, CardContent, Avatar, Button, 
-  Container, Chip, TextField, InputAdornment, Fade, Paper, CircularProgress, Alert, Stack
+  Container, Chip, TextField, InputAdornment, Fade, Paper, CircularProgress, Alert, Stack,
+  Dialog, DialogTitle, DialogContent, DialogActions, Snackbar
 } from '@mui/material';
 import { 
   LocalHospital as LocalHospitalIcon,
@@ -18,6 +19,11 @@ function Doctors() {
   const [activeConsultations, setActiveConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [requestDialogOpen, setRequestDialogOpen] = useState(false);
+  const [selectedDoctor, setSelectedDoctor] = useState(null);
+  const [symptoms, setSymptoms] = useState('');
+  const [sending, setSending] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   // Get API base URL from environment
   const rawApiBase = import.meta.env.VITE_API_URL || '/api';
@@ -35,8 +41,9 @@ function Doctors() {
         if (!doctorsResponse.ok) {
           throw new Error('Failed to fetch doctors');
         }
-        const doctorsData = await doctorsResponse.json();
-        setDoctors(doctorsData);
+  const doctorsData = await doctorsResponse.json();
+  // Backend returns { data: [...], pagination: {...} }
+  setDoctors(Array.isArray(doctorsData) ? doctorsData : (doctorsData?.data || []));
         
         // Fetch active consultations
         const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
@@ -76,6 +83,70 @@ function Doctors() {
     return activeConsultations.some(cons => cons.doctor_id === doctorId);
   };
 
+  // Handle sending consultation request
+  const handleSendRequest = async () => {
+    if (!selectedDoctor) return;
+    if (!symptoms.trim()) {
+      setSnackbar({ open: true, message: 'Please describe your symptoms', severity: 'warning' });
+      return;
+    }
+
+    setSending(true);
+    try {
+      const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
+      if (!token) {
+        setSnackbar({ open: true, message: 'Please log in first', severity: 'error' });
+        setSending(false);
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/consultation/request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          doctor_id: selectedDoctor.id,
+          symptoms: symptoms
+        })
+      });
+
+      // Try to parse response body safely for better error messages
+      let responseBody = null;
+      try {
+        responseBody = await response.json();
+      } catch (e) {
+        // Non-JSON response (could be empty) - we'll still treat 2xx as success
+        console.warn('Failed to parse JSON response for consultation request', e);
+      }
+
+      if (!response.ok) {
+        const errorMessage = (responseBody && (responseBody.error || responseBody.message)) || `Failed to request consultation (${response.status})` || response.statusText;
+        console.error('Consultation request failed', { status: response.status, body: responseBody });
+        setSnackbar({ open: true, message: errorMessage, severity: 'error' });
+        setSending(false);
+        return;
+      }
+
+      // Success (any 2xx). Show success even if parsing the JSON failed.
+      setSnackbar({ open: true, message: 'Consultation request sent successfully!', severity: 'success' });
+      setRequestDialogOpen(false);
+      setSymptoms('');
+      setSelectedDoctor(null);
+      
+      // Redirect to consult page after a brief delay
+      setTimeout(() => {
+        navigate('/consult');
+      }, 1500);
+    } catch (err) {
+      console.error('Unexpected error sending consultation request:', err);
+      setSnackbar({ open: true, message: err.message || 'Failed to send request', severity: 'error' });
+    } finally {
+      setSending(false);
+    }
+  };
+
   // Memoize filtered doctors for performance
   const filteredDoctors = useMemo(() => {
     if (!search.trim()) return doctors;
@@ -90,8 +161,11 @@ function Doctors() {
   return (
     <Box sx={{ 
       background: 'linear-gradient(165deg, #0f172a 0%, #1e293b 50%, #1e3a5f 100%)',
-      minHeight: '100vh', 
-      py: 5,
+      height: '100%',
+      width: '100%',
+      py: 3,
+      px: { xs: 2, sm: 3 },
+      overflow: 'auto',
       position: 'relative',
       '&::before': {
         content: '""',
@@ -104,32 +178,32 @@ function Doctors() {
         pointerEvents: 'none'
       }
     }}>
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '1200px', mx: 'auto' }}>
         <Fade in timeout={600}>
           <Box>
             {/* Header */}
-            <Box sx={{ textAlign: 'center', mb: 5 }}>
+            <Box sx={{ textAlign: 'center', mb: 3 }}>
               <Box sx={{ 
                 display: 'inline-flex',
-                p: 3,
-                borderRadius: '24px',
+                p: 2,
+                borderRadius: '20px',
                 background: 'linear-gradient(135deg, #22d3ee 0%, #fb923c 100%)',
-                mb: 3,
+                mb: 2,
                 boxShadow: '0 10px 40px rgba(34, 211, 238, 0.3)'
               }}>
-                <LocalHospitalIcon sx={{ fontSize: 64, color: 'white' }} />
+                <LocalHospitalIcon sx={{ fontSize: 48, color: 'white' }} />
               </Box>
-              <Typography variant="h3" fontWeight="700" gutterBottom sx={{ 
+              <Typography variant="h4" fontWeight="700" gutterBottom sx={{ 
                 color: 'white',
                 letterSpacing: '-1px',
-                mb: 2
+                mb: 1.5
               }}>
                 Find Your Doctor
               </Typography>
-              <Typography variant="h6" sx={{ 
+              <Typography variant="body1" sx={{ 
                 color: 'rgba(255,255,255,0.7)', 
                 fontWeight: 400,
-                mb: 4,
+                mb: 3,
                 maxWidth: 600,
                 mx: 'auto'
               }}>
@@ -411,7 +485,14 @@ function Doctors() {
                             fullWidth
                             size="large"
                             disabled={!doc.is_online}
-                            href={hasActiveConsultation(doc.id) ? '/consult' : `/consult?doctorId=${encodeURIComponent(doc.id)}`}
+                            onClick={() => {
+                              if (hasActiveConsultation(doc.id)) {
+                                navigate('/consult');
+                              } else if (doc.is_online) {
+                                setSelectedDoctor(doc);
+                                setRequestDialogOpen(true);
+                              }
+                            }}
                             sx={{ 
                               py: 1.5, 
                               fontWeight: 700, 
@@ -482,7 +563,138 @@ function Doctors() {
             )}
           </Box>
         </Fade>
-      </Container>
+      </Box>
+
+      {/* Consultation Request Dialog */}
+      <Dialog
+        open={requestDialogOpen}
+        onClose={() => {
+          setRequestDialogOpen(false);
+          setSymptoms('');
+          setSelectedDoctor(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 4,
+            bgcolor: 'rgba(30, 41, 59, 0.95)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(139, 92, 246, 0.2)',
+          }
+        }}
+      >
+        <DialogTitle sx={{ color: 'white', borderBottom: '1px solid rgba(139, 92, 246, 0.2)' }}>
+          <Typography variant="h5" fontWeight="bold" sx={{
+            background: 'linear-gradient(135deg, #A78BFA 0%, #EC4899 50%, #FBBF24 100%)',
+            backgroundClip: 'text',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+          }}>
+            Request Consultation
+          </Typography>
+        </DialogTitle>
+        <DialogContent sx={{ pt: 3 }}>
+          {selectedDoctor && (
+            <Box sx={{ mb: 3, p: 2, borderRadius: 2, bgcolor: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(139, 92, 246, 0.2)' }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Avatar
+                  src={selectedDoctor.photo_url}
+                  sx={{
+                    width: 56,
+                    height: 56,
+                    background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+                  }}
+                >
+                  {selectedDoctor.name?.charAt(0) || 'D'}
+                </Avatar>
+                <Box>
+                  <Typography variant="h6" fontWeight="bold" sx={{ color: 'white' }}>
+                    Dr. {selectedDoctor.name}
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.7)' }}>
+                    {selectedDoctor.specialization}
+                  </Typography>
+                </Box>
+              </Box>
+            </Box>
+          )}
+          <TextField
+            fullWidth
+            label="Describe your symptoms"
+            placeholder="E.g., Headache and fever for 2 days"
+            value={symptoms}
+            onChange={(e) => setSymptoms(e.target.value)}
+            multiline
+            rows={4}
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'rgba(71, 85, 105, 0.3)',
+                color: 'white',
+                '& fieldset': {
+                  borderColor: 'rgba(139, 92, 246, 0.2)',
+                },
+                '&:hover fieldset': {
+                  borderColor: 'rgba(139, 92, 246, 0.4)',
+                },
+                '&.Mui-focused fieldset': {
+                  borderColor: '#6366F1',
+                },
+              },
+              '& .MuiInputLabel-root': {
+                color: 'rgba(255,255,255,0.7)',
+              },
+            }}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 3, pt: 2, borderTop: '1px solid rgba(139, 92, 246, 0.2)' }}>
+          <Button
+            onClick={() => {
+              setRequestDialogOpen(false);
+              setSymptoms('');
+              setSelectedDoctor(null);
+            }}
+            sx={{
+              color: 'rgba(255,255,255,0.7)',
+              '&:hover': {
+                bgcolor: 'rgba(71, 85, 105, 0.3)',
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSendRequest}
+            disabled={!symptoms.trim() || sending}
+            variant="contained"
+            startIcon={sending ? <CircularProgress size={20} color="inherit" /> : null}
+            sx={{
+              background: 'linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)',
+              '&:hover': {
+                background: 'linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%)',
+              },
+            }}
+          >
+            {sending ? 'Sending...' : 'Send Request'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert 
+          onClose={() => setSnackbar({ ...snackbar, open: false })} 
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

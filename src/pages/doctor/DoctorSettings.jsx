@@ -39,6 +39,7 @@ function DoctorSettings() {
     specialization: '',
     hospital: '',
     phone: '',
+    bio: '',
     photo_url: '',
     id_card_url: '',
     is_online: false
@@ -65,6 +66,7 @@ function DoctorSettings() {
         specialization: user.specialization || '',
         hospital: user.hospital || '',
         phone: user.phone || '',
+        bio: user.bio || '',
         photo_url: user.photo_url || '',
         id_card_url: user.id_card_url || '',
         is_online: user.is_online || false
@@ -271,35 +273,36 @@ function DoctorSettings() {
   return (
     <Box 
       sx={{ 
-        minHeight: '100vh', 
-        py: 4,
-        px: { xs: 2, sm: 3, md: 4 },
+        height: '100%',
+        overflow: 'auto',
+        py: 3,
+        px: { xs: 2, sm: 3 },
         bgcolor: isDark ? '#1E1B2E' : '#FDF4FF'
       }}
     >
-      <Container maxWidth="xl" sx={{ px: { xs: 0, sm: 2 } }}>
+      <Box sx={{ maxWidth: 1200, mx: 'auto' }}>
         <Fade in timeout={800}>
           <Box>
             {/* Header */}
-            <Box sx={{ mb: 5 }}>
+            <Box sx={{ mb: 4 }}>
               <Typography 
-                variant="h2" 
+                variant="h4" 
                 fontWeight="800" 
                 sx={{ 
-                  fontSize: { xs: '2rem', md: '3rem' },
-                  mb: 1.5,
-                  letterSpacing: '-0.03em',
+                  fontSize: { xs: '1.75rem', md: '2rem' },
+                  mb: 1,
+                  letterSpacing: '-0.02em',
                   color: isDark ? '#F3F4F6' : '#111827'
                 }}
               >
                 Settings
               </Typography>
               <Typography 
-                variant="h6" 
+                variant="body1" 
                 sx={{ 
                   color: isDark ? '#9CA3AF' : '#6B7280', 
                   fontWeight: 400,
-                  fontSize: '1.1rem'
+                  fontSize: '0.9375rem'
                 }}
               >
                 Manage your profile and preferences
@@ -310,8 +313,8 @@ function DoctorSettings() {
               <Alert 
                 severity={message.type} 
                 sx={{ 
-                  mb: 4, 
-                  borderRadius: 4,
+                  mb: 3, 
+                  borderRadius: 2,
                   bgcolor: message.type === 'error' 
                     ? (isDark ? 'rgba(252, 165, 165, 0.15)' : 'rgba(254, 242, 242, 0.9)')
                     : (isDark ? 'rgba(110, 231, 183, 0.15)' : 'rgba(236, 253, 245, 0.9)'),
@@ -663,6 +666,40 @@ function DoctorSettings() {
                             />
                           </Grid>
                           <Grid item xs={12}>
+                            <TextField
+                              fullWidth
+                              label="Bio / Introduction"
+                              name="bio"
+                              value={formData.bio}
+                              onChange={handleChange}
+                              variant="outlined"
+                              multiline
+                              rows={4}
+                              placeholder="Write a brief introduction about yourself, your experience, and specializations. This will be visible to patients viewing your profile."
+                              helperText={`${formData.bio?.length || 0}/500 characters`}
+                              inputProps={{ maxLength: 500 }}
+                              sx={{
+                                '& .MuiOutlinedInput-root': {
+                                  borderRadius: 3,
+                                  bgcolor: isDark ? 'rgba(196, 181, 253, 0.05)' : 'rgba(255, 255, 255, 0.8)',
+                                  '& fieldset': {
+                                    borderColor: isDark ? 'rgba(196, 181, 253, 0.2)' : 'rgba(167, 139, 250, 0.2)'
+                                  },
+                                  '&:hover fieldset': {
+                                    borderColor: isDark ? 'rgba(196, 181, 253, 0.3)' : 'rgba(167, 139, 250, 0.3)'
+                                  },
+                                  '&.Mui-focused fieldset': {
+                                    borderColor: isDark ? '#C4B5FD' : '#A78BFA'
+                                  }
+                                },
+                                '& .MuiFormHelperText-root': {
+                                  color: isDark ? '#9CA3AF' : '#6B7280',
+                                  textAlign: 'right'
+                                }
+                              }}
+                            />
+                          </Grid>
+                          <Grid item xs={12}>
                             <Box sx={{ 
                               p: 3, 
                               borderRadius: 3,
@@ -1008,7 +1045,7 @@ function DoctorSettings() {
             </Grid>
           </Box>
         </Fade>
-      </Container>
+      </Box>
     </Box>
   );
 }

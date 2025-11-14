@@ -3,8 +3,8 @@ const API_BASE_URL = rawApiBase.endsWith('/api')
   ? rawApiBase
   : `${rawApiBase.replace(/\/$/, '')}/api`;
 
-const authHeaders = () => {
-  const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
+const getAuthHeaders = () => {
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',
     ...(token && { Authorization: `Bearer ${token}` }),
@@ -21,7 +21,7 @@ const handleResponse = async (response) => {
 
 export const listFolders = async () => {
   const response = await fetch(`${API_BASE_URL}/patient/folders`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -29,7 +29,7 @@ export const listFolders = async () => {
 export const createFolder = async (name, parentId = null) => {
   const response = await fetch(`${API_BASE_URL}/patient/folders`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify({ name, parent_id: parentId }),
   });
   return handleResponse(response);
@@ -38,7 +38,7 @@ export const createFolder = async (name, parentId = null) => {
 export const deleteFolder = async (folderId) => {
   const response = await fetch(`${API_BASE_URL}/patient/folders/${folderId}`, {
     method: 'DELETE',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   if (response.status === 204) return true;
   return handleResponse(response);
@@ -52,7 +52,7 @@ export const listDocuments = async ({ folderId = null, uncategorized = false } =
     params.set('uncategorized', 'true');
   }
   const response = await fetch(`${API_BASE_URL}/patient/documents?${params.toString()}`, {
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   return handleResponse(response);
 };
@@ -60,7 +60,7 @@ export const listDocuments = async ({ folderId = null, uncategorized = false } =
 export const deleteDocument = async (documentId) => {
   const response = await fetch(`${API_BASE_URL}/patient/documents/${documentId}`, {
     method: 'DELETE',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
   });
   if (response.status === 204) return true;
   return handleResponse(response);
@@ -69,7 +69,7 @@ export const deleteDocument = async (documentId) => {
 export const updateDocument = async (documentId, payload) => {
   const response = await fetch(`${API_BASE_URL}/patient/documents/${documentId}`, {
     method: 'PUT',
-    headers: authHeaders(),
+    headers: getAuthHeaders(),
     body: JSON.stringify(payload),
   });
   return handleResponse(response);

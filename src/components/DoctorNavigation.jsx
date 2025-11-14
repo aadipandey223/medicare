@@ -43,7 +43,7 @@ function DoctorNavigation({ children }) {
   const refreshNotifications = useCallback(async () => {
     try {
       const summary = await fetchNotificationSummary();
-      if (summary && typeof summary.unread === 'number') {
+      if (summary && typeof summary.unread === 'number' && summary.unread >= 0) {
         setNotificationSummary({ total: summary.total || 0, unread: summary.unread || 0 });
       } else {
         // If API fails or returns invalid data, set to 0
@@ -59,7 +59,10 @@ function DoctorNavigation({ children }) {
   const fetchTodayActivity = useCallback(async () => {
     try {
       const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
-      if (!token) return;
+      if (!token) {
+        setTodayActivity({ patients: 0, completed: 0, pending: 0 });
+        return;
+      }
       
       const response = await fetch(`${API_BASE_URL}/doctor/dashboard`, {
         headers: {
@@ -70,12 +73,21 @@ function DoctorNavigation({ children }) {
       
       if (response.ok) {
         const data = await response.json();
-        if (data.today_activity) {
-          setTodayActivity(data.today_activity);
+        if (data.today_activity && typeof data.today_activity === 'object') {
+          setTodayActivity({
+            patients: data.today_activity.patients || 0,
+            completed: data.today_activity.completed || 0,
+            pending: data.today_activity.pending || 0
+          });
+        } else {
+          setTodayActivity({ patients: 0, completed: 0, pending: 0 });
         }
+      } else {
+        setTodayActivity({ patients: 0, completed: 0, pending: 0 });
       }
     } catch (err) {
       console.warn('Failed to load today activity', err);
+      setTodayActivity({ patients: 0, completed: 0, pending: 0 });
     }
   }, []);
 
@@ -85,7 +97,7 @@ function DoctorNavigation({ children }) {
     const interval = setInterval(() => {
       refreshNotifications();
       fetchTodayActivity();
-    }, 30000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [refreshNotifications, fetchTodayActivity]);
 
@@ -291,15 +303,15 @@ function DoctorNavigation({ children }) {
       }}
     >
       {/* Header - Fixed (simplified, logo moved to AppBar) */}
-      <Box sx={{ p: 3, pb: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ p: 2, pb: 1.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         {/* Empty space - logo and title moved to AppBar */}
       </Box>
 
       {/* Doctor Profile Card - Fixed */}
-      <Box sx={{ px: 3, mb: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ px: 2.5, mb: 1.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         <Paper
           sx={{
-            p: 2.5,
+            p: 2,
             borderRadius: 2,
             bgcolor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.9)',
             border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.2)' : 'rgba(226, 232, 240, 0.8)'}`,
@@ -315,17 +327,17 @@ function DoctorNavigation({ children }) {
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ position: 'relative' }}>
               <Avatar 
                 src={user?.photo_url}
                 sx={{ 
-                  width: 56, 
-                  height: 56, 
+                  width: 48, 
+                  height: 48, 
                   bgcolor: 'linear-gradient(135deg, #0D9488 0%, #0891B2 100%)',
-                  fontSize: '1.25rem',
+                  fontSize: '1.1rem',
                   fontWeight: 700,
-                  border: `3px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.8)'}`,
+                  border: `2px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.8)'}`,
                   boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)',
                 }}
               >
@@ -336,25 +348,25 @@ function DoctorNavigation({ children }) {
                   position: 'absolute',
                   bottom: -2,
                   right: -2,
-                  width: 16,
-                  height: 16,
+                  width: 14,
+                  height: 14,
                   borderRadius: '50%',
                   bgcolor: user?.is_online ? '#10B981' : '#EF4444',
-                  border: `3px solid ${isDark ? '#1E293B' : '#FFFFFF'}`,
+                  border: `2px solid ${isDark ? '#1E293B' : '#FFFFFF'}`,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
                 }}
               />
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body1" fontWeight="700" noWrap sx={{ fontSize: '0.9rem', color: isDark ? '#F1F5F9' : '#1E293B', mb: 0.5 }}>
+              <Typography variant="body2" fontWeight="700" noWrap sx={{ fontSize: '0.85rem', color: isDark ? '#F1F5F9' : '#1E293B', mb: 0.25 }}>
                 {user?.name || 'Doctor'}
               </Typography>
-              <Typography variant="caption" noWrap sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" noWrap sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.7rem', display: 'block', mb: 0.25 }}>
                 {user?.specialization || 'General Medicine'}
               </Typography>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Circle sx={{ fontSize: 8, color: user?.is_online ? '#10B981' : '#EF4444' }} />
-                <Typography variant="caption" sx={{ color: user?.is_online ? '#10B981' : '#EF4444', fontSize: '0.7rem', fontWeight: 600 }}>
+                <Circle sx={{ fontSize: 7, color: user?.is_online ? '#10B981' : '#EF4444' }} />
+                <Typography variant="caption" sx={{ color: user?.is_online ? '#10B981' : '#EF4444', fontSize: '0.65rem', fontWeight: 600 }}>
                   {user?.is_online ? 'Available' : 'Offline'}
                 </Typography>
               </Box>
@@ -363,37 +375,69 @@ function DoctorNavigation({ children }) {
         </Paper>
       </Box>
 
-      <Divider sx={{ mx: 3, opacity: 0.2, mb: 1, flexShrink: 0 }} />
+      <Divider sx={{ mx: 2.5, opacity: 0.2, mb: 1, flexShrink: 0 }} />
 
       {/* Scrollable Content Area */}
-      <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ flex: 1, overflow: 'auto', px: 2.5, position: 'relative', zIndex: 1 }}>
+      <Box sx={{ 
+        flex: 1, 
+        overflow: 'hidden', 
+        display: 'flex', 
+        flexDirection: 'column',
+        position: 'relative'
+      }}>
+        <Box sx={{ 
+          flex: 1, 
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          px: 2, 
+          position: 'relative', 
+          zIndex: 1,
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: isDark ? 'rgba(15, 23, 42, 0.4)' : 'rgba(241, 245, 249, 0.4)',
+            borderRadius: '10px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(8, 145, 178, 0.6) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.4) 0%, rgba(8, 145, 178, 0.4) 100%)',
+            borderRadius: '10px',
+            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.8) 0%, rgba(8, 145, 178, 0.8) 100%)'
+              : 'linear-gradient(135deg, rgba(59, 130, 246, 0.6) 0%, rgba(8, 145, 178, 0.6) 100%)',
+          },
+        }}>
           {/* Navigation Menu */}
           <Typography variant="caption" sx={{ 
-            px: 2, 
-            mb: 1.5, 
+            px: 1.5, 
+            mb: 1, 
             display: 'block',
             color: isDark ? '#64748B' : '#94A3B8',
-            fontSize: '0.7rem',
+            fontSize: '0.65rem',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
           }}>
             Menu
           </Typography>
-          <List sx={{ p: 0, mb: 2 }}>
+          <List sx={{ p: 0, mb: 1.5 }}>
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               const colorStyles = getColorStyles(item.color, isActive);
               return (
-                <ListItem key={item.text} disablePadding sx={{ mb: 0.75 }}>
+                <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                   <ListItemButton
                     onClick={() => handleNavigation(item.path)}
                     sx={{
-                      borderRadius: 2,
-                      minHeight: 48,
-                      px: 2,
-                      py: 1.5,
+                      borderRadius: 1.5,
+                      minHeight: 44,
+                      px: 1.5,
+                      py: 1.25,
                       bgcolor: colorStyles.bg,
                       border: `1px solid ${colorStyles.border}`,
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -425,16 +469,16 @@ function DoctorNavigation({ children }) {
                     }}
                   >
                     <ListItemIcon sx={{ 
-                      minWidth: 44,
+                      minWidth: 40,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
                       <Box
                         sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 1.5,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 1.25,
                           bgcolor: colorStyles.icon,
                           display: 'flex',
                           alignItems: 'center',
@@ -452,18 +496,18 @@ function DoctorNavigation({ children }) {
                             color="error"
                             sx={{
                               '& .MuiBadge-badge': {
-                                fontSize: '0.65rem',
-                                minWidth: 18,
-                                height: 18,
+                                fontSize: '0.6rem',
+                                minWidth: 16,
+                                height: 16,
                                 borderRadius: '50%',
                                 animation: 'bounce 2s infinite',
                               }
                             }}
                           >
-                            {item.icon}
+                            {React.cloneElement(item.icon, { sx: { fontSize: 18 } })}
                           </Badge>
                         ) : (
-                          item.icon
+                          React.cloneElement(item.icon, { sx: { fontSize: 18 } })
                         )}
                       </Box>
                     </ListItemIcon>
@@ -471,7 +515,7 @@ function DoctorNavigation({ children }) {
                       primary={item.text}
                       primaryTypographyProps={{
                         fontWeight: isActive ? 700 : 600,
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
                         color: colorStyles.text,
                       }}
                     />
@@ -482,11 +526,11 @@ function DoctorNavigation({ children }) {
           </List>
 
           {/* Quick Stats - Inside scrollable area */}
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 1.5 }}>
             <Paper
               sx={{
-                p: 2,
-                borderRadius: 2,
+                p: 1.75,
+                borderRadius: 1.5,
                 background: isDark
                   ? 'linear-gradient(135deg, rgba(13, 148, 136, 0.15) 0%, rgba(8, 145, 178, 0.15) 100%)'
                   : 'linear-gradient(135deg, rgba(236, 254, 255, 0.8) 0%, rgba(240, 253, 250, 0.8) 100%)',
@@ -495,37 +539,37 @@ function DoctorNavigation({ children }) {
             >
               <Typography variant="caption" sx={{ 
                 color: isDark ? '#64748B' : '#64748B',
-                fontSize: '0.7rem',
+                fontSize: '0.65rem',
                 fontWeight: 700,
                 textTransform: 'uppercase',
                 letterSpacing: '0.05em',
-                mb: 1.5,
+                mb: 1,
                 display: 'block'
               }}>
                 Today's Activity
               </Typography>
-              <Box sx={{ display: 'flex', gap: 1.5 }}>
-                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.5, p: 1.5, textAlign: 'center' }}>
-                  <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: isDark ? '#60A5FA' : '#3B82F6', mb: 0.5 }}>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.25, p: 1.25, textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: isDark ? '#60A5FA' : '#3B82F6', mb: 0.25 }}>
                     {todayActivity.patients}
                   </Typography>
-                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
                     Patients
                   </Typography>
                 </Box>
-                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.5, p: 1.5, textAlign: 'center' }}>
-                  <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: isDark ? '#34D399' : '#10B981', mb: 0.5 }}>
+                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.25, p: 1.25, textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: isDark ? '#34D399' : '#10B981', mb: 0.25 }}>
                     {todayActivity.completed}
                   </Typography>
-                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
                     Completed
                   </Typography>
                 </Box>
-                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.5, p: 1.5, textAlign: 'center' }}>
-                  <Typography variant="h6" sx={{ fontSize: '1.1rem', fontWeight: 700, color: isDark ? '#F87171' : '#EF4444', mb: 0.5 }}>
+                <Box sx={{ flex: 1, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : 'rgba(255, 255, 255, 0.7)', borderRadius: 1.25, p: 1.25, textAlign: 'center' }}>
+                  <Typography variant="h6" sx={{ fontSize: '1rem', fontWeight: 700, color: isDark ? '#F87171' : '#EF4444', mb: 0.25 }}>
                     {todayActivity.pending}
                   </Typography>
-                  <Typography variant="caption" sx={{ fontSize: '0.65rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
+                  <Typography variant="caption" sx={{ fontSize: '0.6rem', color: isDark ? '#94A3B8' : '#64748B', fontWeight: 500 }}>
                     Pending
                   </Typography>
                 </Box>
@@ -535,17 +579,17 @@ function DoctorNavigation({ children }) {
         </Box>
       </Box>
 
-      <Divider sx={{ mx: 3, opacity: 0.2, flexShrink: 0 }} />
+      <Divider sx={{ mx: 2.5, opacity: 0.2, flexShrink: 0 }} />
 
       {/* Logout Button - Fixed */}
-      <Box sx={{ p: 2.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ p: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         <ListItemButton
           onClick={handleLogout}
           sx={{
-            borderRadius: 2,
-            minHeight: 48,
-            px: 2,
-            py: 1.5,
+            borderRadius: 1.5,
+            minHeight: 44,
+            px: 1.5,
+            py: 1.25,
             bgcolor: isDark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.9)',
             border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(254, 226, 226, 0.8)'}`,
             transition: 'all 0.3s ease',
@@ -559,12 +603,12 @@ function DoctorNavigation({ children }) {
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 44 }}>
+          <ListItemIcon sx={{ minWidth: 40 }}>
             <Box
               sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 1.5,
+                width: 36,
+                height: 36,
+                borderRadius: 1.25,
                 bgcolor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(254, 226, 226, 0.8)',
                 display: 'flex',
                 alignItems: 'center',
@@ -573,14 +617,14 @@ function DoctorNavigation({ children }) {
                 transition: 'all 0.3s ease',
               }}
             >
-              <LogoutIcon sx={{ fontSize: 20 }} />
+              <LogoutIcon sx={{ fontSize: 18 }} />
             </Box>
           </ListItemIcon>
           <ListItemText 
             primary="Logout"
             primaryTypographyProps={{
               fontWeight: 600,
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               color: isDark ? '#F87171' : '#DC2626',
             }}
           />
@@ -590,27 +634,29 @@ function DoctorNavigation({ children }) {
   );
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', overflow: 'hidden', position: 'relative' }}>
-      {/* Top AppBar */}
+    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden', position: 'relative' }}>
+      {/* Top AppBar - Fixed with proper z-index */}
       <AppBar 
         position="fixed"
         elevation={0}
         sx={{
+          height: 64,
           bgcolor: isDark
-            ? 'rgba(15, 23, 42, 0.9)'
-            : 'rgba(255, 255, 255, 0.9)',
+            ? 'rgba(15, 23, 42, 0.95)'
+            : 'rgba(255, 255, 255, 0.95)',
           color: 'text.primary',
           borderBottom: isDark
             ? '1px solid rgba(30, 41, 59, 0.8)'
             : '1px solid rgba(226, 232, 240, 0.8)',
           backdropFilter: 'blur(20px)',
-          boxShadow: 'none',
+          boxShadow: isDark 
+            ? '0 1px 3px rgba(0,0,0,0.3)'
+            : '0 1px 3px rgba(0,0,0,0.08)',
           zIndex: (theme) => theme.zIndex.drawer + 1,
           width: { sm: `calc(100% - ${drawerOpen ? sidebarWidth : 0}px)` },
           ml: { sm: `${drawerOpen ? sidebarWidth : 0}px` },
           transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
-          minHeight: '56px',
         }}
       >
         {/* Animated Gradient Line */}
@@ -635,9 +681,10 @@ function DoctorNavigation({ children }) {
           }}
         />
         <Toolbar sx={{ 
-          px: { xs: 2, sm: 3 }, 
-          py: 1, 
+          px: { xs: 1.5, sm: 2 }, 
+          py: 0, 
           minHeight: '64px !important', 
+          height: '64px',
           position: 'relative', 
           zIndex: 1,
           alignItems: 'center',
@@ -646,15 +693,15 @@ function DoctorNavigation({ children }) {
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            gap: 2, 
+            gap: 1.5, 
             flex: 1
           }}>
             {/* Logo in outline box with shining animation - Clickable */}
             <Box
               onClick={() => navigate('/doctor/dashboard')}
               sx={{
-                p: 1.5,
-                borderRadius: 2,
+                p: 0.75,
+                borderRadius: 1.25,
                 border: `2px solid ${isDark ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)'}`,
                 position: 'relative',
                 overflow: 'hidden',
@@ -688,7 +735,7 @@ function DoctorNavigation({ children }) {
                 src="/logo.svg"
                 alt="MediCare Logo"
                 sx={{
-                  height: 40,
+                  height: 32,
                   width: 'auto',
                   position: 'relative',
                   zIndex: 1,
@@ -713,41 +760,44 @@ function DoctorNavigation({ children }) {
               onClick={() => navigate('/doctor/dashboard')}
             >
               <Typography 
-                variant="h4" 
+                variant="h5" 
                 component="div"
                 sx={{ 
-                  fontSize: '1.5rem',
+                  fontSize: '1.25rem',
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.2,
                   mb: 0.25,
                   background: isDark
-                    ? 'linear-gradient(135deg, #60A5FA 0%, #34D399 50%, #FBBF24 100%)'
-                    : 'linear-gradient(135deg, #3B82F6 0%, #10B981 50%, #F59E0B 100%)',
+                    ? 'linear-gradient(135deg, #60A5FA 0%, #0D9488 50%, #0891B2 100%)'
+                    : 'linear-gradient(135deg, #3B82F6 0%, #0D9488 50%, #0891B2 100%)',
                   backgroundSize: '200% 200%',
                   backgroundClip: 'text',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   animation: 'gradientShift 3s ease infinite',
+                  '@keyframes gradientShift': {
+                    '0%': { backgroundPosition: '0% 50%' },
+                    '50%': { backgroundPosition: '100% 50%' },
+                    '100%': { backgroundPosition: '0% 50%' },
+                  },
                 }}
               >
                 Medicare
               </Typography>
               <Typography 
-                variant="caption" 
-                component="div"
-                sx={{ 
-                  fontSize: '0.7rem',
-                  fontWeight: 500,
-                  color: isDark ? '#94A3B8' : '#64748B',
-                  letterSpacing: '0.05em',
+                variant="caption"
+                sx={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.15em',
                   textTransform: 'uppercase',
+                  color: isDark ? '#64748B' : '#94A3B8',
                 }}
               >
                 FOR DOCTORS
               </Typography>
             </Box>
           </Box>
-
 
           {/* Right side icons */}
           <Box sx={{ 
@@ -762,21 +812,25 @@ function DoctorNavigation({ children }) {
             {/* Dark/Light Mode Toggle */}
             <IconButton
               onClick={toggleTheme}
+              size="small"
               sx={{
                 color: isDark ? '#FBBF24' : '#1E293B',
+                p: 0.75,
                 '&:hover': {
                   bgcolor: isDark ? 'rgba(245, 158, 11, 0.15)' : 'rgba(241, 245, 249, 0.8)'
                 }
               }}
             >
-              {isDark ? <Brightness7 /> : <Brightness4 />}
+              {isDark ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
             </IconButton>
 
             {/* Notifications */}
             <IconButton
               onClick={() => navigate('/doctor/requests')}
+              size="small"
               sx={{
                 color: isDark ? '#60A5FA' : '#3B82F6',
+                p: 0.75,
                 '&:hover': {
                   bgcolor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 246, 255, 0.8)'
                 }
@@ -786,7 +840,7 @@ function DoctorNavigation({ children }) {
                 badgeContent={notificationSummary.unread > 0 ? notificationSummary.unread : null} 
                 color="error"
               >
-                <NotificationsIcon />
+                <NotificationsIcon fontSize="small" />
               </Badge>
             </IconButton>
 
@@ -803,8 +857,8 @@ function DoctorNavigation({ children }) {
                 src={user?.photo_url} 
                 sx={{ 
                   bgcolor: isDark ? '#0D9488' : '#0891B2', 
-                  width: 36, 
-                  height: 36,
+                  width: 32, 
+                  height: 32,
                   border: `2px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(226, 232, 240, 0.8)'}`,
                   '&:hover': {
                     borderColor: isDark ? '#60A5FA' : '#3B82F6',
@@ -906,7 +960,7 @@ function DoctorNavigation({ children }) {
         onClick={handleDrawerToggle}
         sx={{
           position: 'fixed',
-          top: 68,
+          top: 52,
           left: drawerOpen ? { sm: `${sidebarWidth - 24}px` } : -24,
           zIndex: 1400,
           width: 48,
@@ -946,15 +1000,41 @@ function DoctorNavigation({ children }) {
           marginLeft: { sm: drawerOpen ? `${sidebarWidth}px` : 0 },
           marginTop: '64px',
           transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-          minHeight: 'calc(100vh - 56px)',
+          height: 'calc(100vh - 64px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
           bgcolor: isDark ? '#0F172A' : '#F8FAFC',
-          padding: 0,
-          margin: 0,
           position: 'relative',
-          left: 0,
         }}
       >
-        {children}
+        <Box sx={{ 
+          flex: 1,
+          overflow: 'auto',
+          width: '100%',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: isDark ? 'rgba(15, 23, 42, 0.5)' : 'rgba(241, 245, 249, 0.5)',
+            borderRadius: '10px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: isDark 
+              ? 'linear-gradient(135deg, #3B82F6 0%, #0D9488 50%, #3B82F6 100%)'
+              : 'linear-gradient(135deg, #60A5FA 0%, #14B8A6 50%, #60A5FA 100%)',
+            borderRadius: '10px',
+            border: `1px solid ${isDark ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.2)'}`,
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            background: isDark 
+              ? 'linear-gradient(135deg, #60A5FA 0%, #14B8A6 50%, #60A5FA 100%)'
+              : 'linear-gradient(135deg, #3B82F6 0%, #0D9488 50%, #3B82F6 100%)',
+          },
+        }}>
+          {children}
+        </Box>
       </Box>
     </Box>
   );

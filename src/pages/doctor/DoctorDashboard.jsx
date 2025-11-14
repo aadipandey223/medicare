@@ -36,7 +36,17 @@ function DoctorDashboard() {
     const interval = setInterval(() => {
       fetchDashboardStats(true);
     }, 30000);
-    return () => clearInterval(interval);
+    
+    // Refresh when window gains focus (user returns to tab)
+    const handleFocus = () => {
+      fetchDashboardStats(true);
+    };
+    window.addEventListener('focus', handleFocus);
+    
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   const fetchDashboardStats = async (silent = false) => {
@@ -75,9 +85,9 @@ function DoctorDashboard() {
   return (
     <Box 
       sx={{ 
-        minHeight: '100vh', 
-        pt: 2,
-        pb: 3,
+        height: '100%',
+        overflow: 'auto',
+        py: 3,
         px: { xs: 2, sm: 3 },
         background: isDark
           ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
@@ -105,17 +115,17 @@ function DoctorDashboard() {
         },
       }}
     >
-      <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3 }, py: 2, position: 'relative', zIndex: 10, margin: 0, width: '100%' }}>
+      <Box sx={{ maxWidth: 1400, mx: 'auto', position: 'relative', zIndex: 10 }}>
         <Fade in timeout={600}>
           <Box sx={{ position: 'relative', zIndex: 10 }}>
             {/* Welcome Header */}
-            <Box sx={{ mb: 3, mt: 2, position: 'relative', zIndex: 10, width: '100%' }}>
+            <Box sx={{ mb: 2, position: 'relative', zIndex: 10 }}>
               <Typography 
-                variant="h3" 
+                variant="h4" 
                 component="h1"
                 fontWeight="800" 
                 sx={{ 
-                  fontSize: { xs: '1.75rem', md: '2.25rem' },
+                  fontSize: { xs: '1.5rem', md: '2rem' },
                   mb: 0.5,
                   letterSpacing: '-0.02em',
                   background: isDark
@@ -141,7 +151,7 @@ function DoctorDashboard() {
                 sx={{ 
                   color: isDark ? '#94A3B8' : '#64748B', 
                   fontWeight: 400,
-                  fontSize: '1rem',
+                  fontSize: '0.9375rem',
                   position: 'relative',
                   zIndex: 10,
                   display: 'block',
@@ -154,7 +164,7 @@ function DoctorDashboard() {
             </Box>
 
             {/* Refresh Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3, position: 'relative', zIndex: 10 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2.5, position: 'relative', zIndex: 10 }}>
               <IconButton
                 onClick={() => fetchDashboardStats()}
                 sx={{
@@ -175,7 +185,7 @@ function DoctorDashboard() {
               <Alert 
                 severity="error" 
                 sx={{ 
-                  mb: 3, 
+                  mb: 2.5, 
                   borderRadius: 2,
                   bgcolor: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(254, 242, 242, 0.9)',
                   border: '1px solid rgba(239, 68, 68, 0.3)'
@@ -187,7 +197,7 @@ function DoctorDashboard() {
             )}
 
             {/* Hero Stat Card */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2.5 }}>
               <Grid item xs={12}>
                 <Zoom in timeout={600}>
                   <Card 
@@ -258,14 +268,14 @@ function DoctorDashboard() {
                     }}
                   >
                     <Box className="light-overlay" />
-                    <CardContent sx={{ p: 3, position: 'relative', zIndex: 1 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                    <CardContent sx={{ p: 2.5, position: 'relative', zIndex: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2.5 }}>
                           <Box 
                             sx={{ 
-                              width: 64,
-                              height: 64,
-                              borderRadius: 1.5,
+                              width: 56,
+                              height: 56,
+                              borderRadius: 1.25,
                               background: 'linear-gradient(135deg, #EF4444 0%, #F87171 100%)',
                               display: 'flex',
                               alignItems: 'center',
@@ -276,10 +286,10 @@ function DoctorDashboard() {
                             }}
                           >
                             <Typography 
-                              variant="h2" 
+                              variant="h3" 
                               fontWeight="800" 
                               sx={{ 
-                                fontSize: { xs: '2rem', md: '2.5rem' },
+                                fontSize: { xs: '1.75rem', md: '2rem' },
                                 color: 'white',
                               }}
                             >
@@ -288,11 +298,11 @@ function DoctorDashboard() {
                           </Box>
                           <Box>
                             <Typography 
-                              variant="h6" 
+                              variant="body1" 
                               sx={{ 
                                 color: isDark ? '#CBD5E1' : '#64748B',
                                 fontWeight: 600,
-                                fontSize: '1rem'
+                                fontSize: '0.9375rem'
                               }}
                             >
                               New Consult Requests
@@ -330,7 +340,7 @@ function DoctorDashboard() {
             </Grid>
 
             {/* Medium Stat Cards */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2.5 }}>
               {[
                 {
                   title: 'Active Consultations',
@@ -509,7 +519,7 @@ function DoctorDashboard() {
             </Grid>
           </Box>
         </Fade>
-      </Container>
+      </Box>
     </Box>
   );
 }

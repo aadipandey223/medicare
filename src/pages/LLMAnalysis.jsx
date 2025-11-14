@@ -55,8 +55,11 @@ function LLMAnalysis() {
 
   return (
     <Box sx={{ 
-      minHeight: '100vh', 
-      py: 4,
+      height: '100%',
+      width: '100%',
+      py: 3,
+      px: { xs: 2, sm: 3 },
+      overflow: 'auto',
       background: isDark
         ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
         : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
@@ -82,26 +85,26 @@ function LLMAnalysis() {
         '100%': { backgroundPosition: '0% 50%' },
       },
     }}>
-      <Container maxWidth="md" sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '900px', mx: 'auto' }}>
         <Fade in timeout={600}>
           <Box>
             {/* Header */}
             <Paper 
               elevation={0} 
               sx={{ 
-                p: 4, 
-                mb: 4, 
-                borderRadius: 3, 
+                p: 2.5, 
+                mb: 2.5, 
+                borderRadius: 2, 
                 textAlign: 'center',
                 background: 'linear-gradient(135deg, #00BCD4 0%, #009688 100%)',
                 color: 'white'
               }}
             >
-              <Psychology sx={{ fontSize: 60, mb: 2 }} />
-              <Typography variant="h4" fontWeight="bold" gutterBottom>
+              <Psychology sx={{ fontSize: 48, mb: 1.5 }} />
+              <Typography variant="h5" fontWeight="bold" gutterBottom>
                 AI Health Analysis
               </Typography>
-              <Typography variant="body1" sx={{ opacity: 0.9 }}>
+              <Typography variant="body2" sx={{ opacity: 0.9 }}>
                 Describe your symptoms and get instant AI-powered health insights
               </Typography>
             </Paper>
@@ -331,7 +334,7 @@ function LLMAnalysis() {
             )}
           </Box>
         </Fade>
-      </Container>
+      </Box>
     </Box>
   );
 }

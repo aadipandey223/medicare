@@ -17,22 +17,79 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
 
-  // Check localStorage for token and user on mount
+  // Use sessionStorage for tab-specific auth, with localStorage fallback
   useEffect(() => {
-    const storedToken = sessionStorage.getItem('token') || localStorage.getItem('token');
-    const storedUser = sessionStorage.getItem('user') || localStorage.getItem('user');
-    const storedRole = sessionStorage.getItem('role') || localStorage.getItem('role');
+    // First check sessionStorage (tab-specific)
+    let storedToken = sessionStorage.getItem('token');
+    let storedUser = sessionStorage.getItem('user');
+    let storedRole = sessionStorage.getItem('role');
+    
+    // If not in sessionStorage, check localStorage and copy to sessionStorage
+    if (!storedToken) {
+      storedToken = localStorage.getItem('token');
+      storedUser = localStorage.getItem('user');
+      storedRole = localStorage.getItem('role');
+      
+      // Copy to sessionStorage for this tab
+      if (storedToken) {
+        sessionStorage.setItem('token', storedToken);
+        if (storedUser) sessionStorage.setItem('user', storedUser);
+        if (storedRole) sessionStorage.setItem('role', storedRole);
+      }
+    }
     
     if (storedToken && storedUser) {
       try {
         const userData = JSON.parse(storedUser);
         const role = userData.role || storedRole || 'patient';
-        setToken(storedToken);
-        setUser({...userData, role});
+        
+        // Verify token is still valid by checking with backend
+        fetch('/api/auth/verify', {
+          headers: {
+            'Authorization': `Bearer ${storedToken}`,
+            'Content-Type': 'application/json'
+          }
+        })
+        .then(response => {
+          if (response.ok) {
+            return response.json();
+          } else {
+            throw new Error('Token invalid');
+          }
+        })
+        .then(verifiedData => {
+          // Use the role from backend verification
+          const verifiedRole = verifiedData.role || role;
+          const verifiedUser = {...verifiedData.user, role: verifiedRole};
+          
+          setToken(storedToken);
+          setUser(verifiedUser);
+          
+          // Update sessionStorage with verified data
+          sessionStorage.setItem('role', verifiedRole);
+          sessionStorage.setItem('user', JSON.stringify(verifiedUser));
+          
+          setAuthChecked(true);
+          setLoading(false);
+        })
+        .catch(error => {
+          console.warn('Token verification failed:', error);
+          sessionStorage.removeItem('token');
+          sessionStorage.removeItem('user');
+          sessionStorage.removeItem('role');
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          localStorage.removeItem('role');
+          setToken(null);
+          setUser(null);
+          setAuthChecked(true);
+          setLoading(false);
+        });
+        return; // Don't set loading false yet, wait for verification
       } catch (error) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('role');
+        sessionStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        sessionStorage.removeItem('role');
       }
     }
     
@@ -53,8 +110,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      sessionStorage.removeItem('token');
-      sessionStorage.removeItem('user');
+      localStorage.removeItem('role');
       setToken(null);
       setUser(null);
       return false;
@@ -62,7 +118,11 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = (newToken, userData, role = 'patient') => {
-    // Store per-tab to support simultaneous doctor/patient sessions
+    // Store in both localStorage (for persistence) and sessionStorage (for tab isolation)
+    localStorage.setItem('token', newToken);
+    localStorage.setItem('user', JSON.stringify({...userData, role}));
+    localStorage.setItem('role', role);
+    
     sessionStorage.setItem('token', newToken);
     sessionStorage.setItem('user', JSON.stringify({...userData, role}));
     sessionStorage.setItem('role', role);
@@ -73,13 +133,13 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     logoutApi();
-    // Clear both sessionStorage and localStorage
-    sessionStorage.removeItem('token');
-    sessionStorage.removeItem('user');
-    sessionStorage.removeItem('role');
+    // Clear both localStorage and sessionStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     localStorage.removeItem('role');
+    sessionStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    sessionStorage.removeItem('role');
     setToken(null);
     setUser(null);
   };
@@ -87,9 +147,9 @@ export const AuthProvider = ({ children }) => {
   const updateUser = (updates) => {
     setUser(prev => {
       const updated = { ...prev, ...updates };
-      // Update in both sessionStorage and localStorage
-      sessionStorage.setItem('user', JSON.stringify(updated));
+      // Update in both storages
       localStorage.setItem('user', JSON.stringify(updated));
+      sessionStorage.setItem('user', JSON.stringify(updated));
       return updated;
     });
   };

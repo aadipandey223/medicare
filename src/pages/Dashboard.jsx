@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Grid, Card, CardContent, Container,
+  Box, Typography, Grid, Card, CardContent,
   Paper, CircularProgress, Alert, IconButton, Fade, Button, Zoom
 } from '@mui/material';
 import {
@@ -43,10 +43,10 @@ function Dashboard() {
   return (
     <Box 
       sx={{ 
-        minHeight: '100vh', 
-        pt: 2,
-        pb: 3,
-        px: { xs: 2, sm: 3 },
+        minHeight: '100%',
+        height: '100%',
+        width: '100%',
+        overflow: 'auto',
         background: isDark
           ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
           : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
@@ -73,17 +73,17 @@ function Dashboard() {
         },
       }}
     >
-      <Container maxWidth={false} sx={{ px: { xs: 2, sm: 3 }, py: 2, position: 'relative', zIndex: 10, margin: 0, width: '100%' }}>
+      <Box sx={{ px: { xs: 2, sm: 3, md: 4 }, py: { xs: 2, sm: 3 }, position: 'relative', zIndex: 1, width: '100%', maxWidth: '1400px', mx: 'auto' }}>
         <Fade in timeout={600}>
-          <Box sx={{ position: 'relative', zIndex: 10 }}>
+          <Box>
             {/* Welcome Header */}
-            <Box sx={{ mb: 3, mt: 2, position: 'relative', zIndex: 10, width: '100%' }}>
+            <Box sx={{ mb: 2 }}>
               <Typography 
-                variant="h3" 
+                variant="h4" 
                 component="h1"
                 fontWeight="800" 
                 sx={{ 
-                  fontSize: { xs: '1.75rem', md: '2.25rem' },
+                  fontSize: { xs: '1.5rem', md: '2rem' },
                   mb: 0.5,
                   letterSpacing: '-0.02em',
                   background: isDark
@@ -94,11 +94,6 @@ function Dashboard() {
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   animation: 'gradientShift 3s ease infinite',
-                  position: 'relative',
-                  zIndex: 10,
-                  display: 'block',
-                  visibility: 'visible',
-                  opacity: 1,
                 }}
               >
                 Welcome, {userName}
@@ -109,12 +104,7 @@ function Dashboard() {
                 sx={{ 
                   color: isDark ? '#94A3B8' : '#64748B', 
                   fontWeight: 400,
-                  fontSize: '1rem',
-                  position: 'relative',
-                  zIndex: 10,
-                  display: 'block',
-                  visibility: 'visible',
-                  opacity: 1,
+                  fontSize: '0.95rem',
                 }}
               >
                 Here's what's happening today
@@ -122,7 +112,7 @@ function Dashboard() {
             </Box>
 
             {/* Refresh Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 3, position: 'relative', zIndex: 10 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
               <IconButton
                 onClick={handleRefresh}
                 sx={{
@@ -140,7 +130,7 @@ function Dashboard() {
             </Box>
 
             {/* Hero Stat Card */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
               <Grid item xs={12}>
                 <Zoom in timeout={600}>
                   <Card 
@@ -284,7 +274,7 @@ function Dashboard() {
             </Grid>
 
             {/* Medium Stat Cards */}
-            <Grid container spacing={2} sx={{ mb: 3 }}>
+            <Grid container spacing={2} sx={{ mb: 2 }}>
               {[
                 {
                   title: 'Consult Doctor',
@@ -565,7 +555,7 @@ function Dashboard() {
             </Grid>
           </Box>
         </Fade>
-      </Container>
+      </Box>
     </Box>
   );
 }

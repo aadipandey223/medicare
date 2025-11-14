@@ -46,10 +46,16 @@ function AdminPasswordResets() {
 
   const fetchResets = async () => {
     try {
+      setLoading(true);
       const data = await adminApi.listPasswordResets();
-      setResets(data);
+      setResets(Array.isArray(data) ? data : []);
+      if (data && data.length === 0) {
+        setMessage({ type: 'info', text: 'No password reset requests found' });
+      }
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to load password reset requests' });
+      console.error('Failed to load password resets:', err);
+      setMessage({ type: 'error', text: err.message || 'Failed to load password reset requests' });
+      setResets([]);
     } finally {
       setLoading(false);
     }

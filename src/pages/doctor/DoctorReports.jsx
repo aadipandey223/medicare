@@ -72,6 +72,25 @@ function DoctorReports() {
     }
   };
 
+  const handleViewDocument = async (report) => {
+    // Open the document in a new tab
+    if (report.download_url) {
+      window.open(report.download_url, '_blank', 'noopener');
+      
+      // Mark as viewed
+      try {
+        await apiRequest(`/doctor/reports/${report.id}/view`, {
+          method: 'POST'
+        });
+        // Refresh the reports list to update the count
+        fetchReports(true);
+      } catch (err) {
+        // Silent fail - don't show error if marking as viewed fails
+        console.error('Failed to mark document as viewed:', err);
+      }
+    }
+  };
+
   const getFileTypeColor = (mimeType) => {
     if (!mimeType) return isDark ? '#64748B' : '#6B7280';
     if (mimeType.includes('pdf')) return isDark ? '#EF4444' : '#DC2626';
@@ -97,22 +116,24 @@ function DoctorReports() {
   return (
     <Box sx={{ 
       bgcolor: isDark ? '#0F172A' : '#FAFAFA', 
-      minHeight: '100vh', 
-      py: 4 
+      height: '100%', 
+      overflow: 'auto',
+      py: 3 
     }}>
-      <Container maxWidth="xl">
+      <Box sx={{ maxWidth: 1400, mx: 'auto', px: { xs: 2, sm: 3 } }}>
         <Fade in timeout={800}>
-          <Box sx={{ mb: 4 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+          <Box sx={{ mb: 3 }}>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
               <Box>
-                <Typography variant="h3" fontWeight="600" sx={{ 
+                <Typography variant="h4" fontWeight="600" sx={{ 
                   color: isDark ? '#F1F5F9' : '#111827', 
-                  mb: 1 
+                  mb: 0.5 
                 }}>
                   Patient Reports & Documents
                 </Typography>
                 <Typography variant="body1" sx={{ 
-                  color: isDark ? '#94A3B8' : '#6B7280' 
+                  color: isDark ? '#94A3B8' : '#6B7280',
+                  fontSize: '0.9375rem'
                 }}>
                   View and manage all patient medical documents
                 </Typography>
@@ -120,6 +141,7 @@ function DoctorReports() {
               <IconButton
                 onClick={() => fetchReports()}
                 disabled={refreshing}
+                size="small"
                 sx={{
                   bgcolor: isDark ? 'rgba(59, 130, 246, 0.15)' : 'rgba(239, 246, 255, 0.8)',
                   color: isDark ? '#60A5FA' : '#3B82F6',
@@ -129,7 +151,7 @@ function DoctorReports() {
                   transition: 'all 0.3s ease',
                 }}
               >
-                <RefreshIcon sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+                <RefreshIcon fontSize="small" sx={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
               </IconButton>
             </Box>
 
@@ -298,7 +320,7 @@ function DoctorReports() {
                               <Tooltip title="View">
                                 <IconButton
                                   size="small"
-                                  onClick={() => window.open(report.download_url, '_blank', 'noopener')}
+                                  onClick={() => handleViewDocument(report)}
                                   sx={{
                                     color: isDark ? '#60A5FA' : '#3B82F6',
                                     '&:hover': {
@@ -340,7 +362,7 @@ function DoctorReports() {
             </TableContainer>
           </Fade>
         )}
-      </Container>
+      </Box>
     </Box>
   );
 }

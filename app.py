@@ -3,35 +3,79 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional, List
 from dotenv import load_dotenv
+import logging
+import sys
 
 from flask import Flask, abort, jsonify, request, send_from_directory
 from flask_cors import CORS
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from sqlalchemy import create_engine, Column, Integer, String, Date, DateTime, ForeignKey, Text, Table, UniqueConstraint, Boolean, inspect, text
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship, scoped_session, backref
+from pydantic import BaseModel, EmailStr, Field, field_validator
 import jwt
 import bcrypt
 
 # Load environment variables from .env file
 load_dotenv()
 
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout),
+        logging.FileHandler('medicare.log')
+    ]
+)
+logger = logging.getLogger(__name__)
+
+try:
+    from google.oauth2 import id_token as google_id_token
+    from google.auth.transport import requests as google_requests
+    GOOGLE_AUTH_AVAILABLE = True
+    logger.info("Google auth libraries loaded")
+except (ImportError, ModuleNotFoundError):
+    # Google auth libraries are optional for deployments that don't use Google Sign-In
+    google_id_token = None
+    google_requests = None
+    GOOGLE_AUTH_AVAILABLE = False
+    logger.warning("Google auth libraries not available. Google Sign-In endpoints will be disabled.")
+
 try:
     from supabase import create_client
     SUPABASE_AVAILABLE = True
+    logger.info("Supabase client loaded successfully")
 except ImportError:
     SUPABASE_AVAILABLE = False
-    print("[WARN] Supabase not installed. Run: pip install supabase")
+    logger.warning("Supabase not installed. Run: pip install supabase")
 
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///medicare.db")
 JWT_SECRET = os.getenv("JWT_SECRET", "your-secret-key-change-in-production")
-print(f"[INFO] JWT_SECRET loaded: {JWT_SECRET[:30]}... (length: {len(JWT_SECRET)})")
+logger.info(f"JWT_SECRET loaded: {JWT_SECRET[:30]}... (length: {len(JWT_SECRET)})")
 JWT_EXPIRATION = 7 * 24 * 60 * 60  # 7 days in seconds
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 
-engine = create_engine(
-    DATABASE_URL,
-    connect_args={"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {},
-    future=True,
-)
+# Create engine with optimized connection pooling
+if DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        DATABASE_URL,
+        connect_args={"check_same_thread": False},
+        future=True,
+    )
+else:
+    # For PostgreSQL/MySQL: Configure connection pool
+    engine = create_engine(
+        DATABASE_URL,
+        pool_size=10,  # Number of connections to keep open
+        max_overflow=20,  # Max additional connections beyond pool_size
+        pool_pre_ping=True,  # Verify connections before using
+        pool_recycle=3600,  # Recycle connections after 1 hour
+        future=True,
+    )
+    logger.info("Database connection pool configured: pool_size=10, max_overflow=20")
+
 SessionLocal = scoped_session(sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True))
 Base = declarative_base()
 
@@ -155,6 +199,7 @@ class Doctor(Base):
     specialization = Column(String(100), nullable=True)
     hospital = Column(String(100), nullable=True)
     phone = Column(String(50), nullable=True)
+    bio = Column(String(500), nullable=True)
     photo_url = Column(String(300), nullable=True)
     id_card_url = Column(String(300), nullable=True)
     is_active = Column(Boolean, default=True, nullable=False)
@@ -178,6 +223,7 @@ class Doctor(Base):
             'specialization': self.specialization,
             'hospital': self.hospital,
             'phone': self.phone,
+            'bio': self.bio,
             'photo_url': self.photo_url,
             'id_card_url': self.id_card_url,
             'is_active': self.is_active,
@@ -294,6 +340,17 @@ class Message(Base):
     consultation = relationship("Consultation", back_populates="messages")
 
 
+class MessageDocument(Base):
+    __tablename__ = "message_documents"
+
+    id = Column(Integer, primary_key=True)
+    message_id = Column(Integer, ForeignKey("messages.id"), nullable=False, index=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    attached_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    document = relationship("Document")
+
+
 class ConsultationDocument(Base):
     __tablename__ = "consultation_documents"
 
@@ -304,6 +361,20 @@ class ConsultationDocument(Base):
 
     consultation = relationship("Consultation", back_populates="documents")
     document = relationship("Document")
+
+
+class DocumentView(Base):
+    __tablename__ = "document_views"
+
+    id = Column(Integer, primary_key=True)
+    document_id = Column(Integer, ForeignKey("documents.id"), nullable=False, index=True)
+    doctor_id = Column(Integer, ForeignKey("doctors.id"), nullable=False, index=True)
+    viewed_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    
+    __table_args__ = (UniqueConstraint('document_id', 'doctor_id', name='uq_document_doctor_view'),)
+
+    document = relationship("Document")
+    doctor = relationship("Doctor")
 
 
 class Notification(Base):
@@ -379,6 +450,15 @@ else:
     # Development: Allow all origins
     CORS(app)
 
+# Configure rate limiting
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=["2000 per day", "500 per hour"],
+    storage_uri="memory://",
+)
+logger.info("Rate limiting configured: 2000/day, 500/hour globally")
+
 # Supabase initialization for file uploads
 if SUPABASE_AVAILABLE:
     SUPABASE_URL = os.getenv("SUPABASE_URL", "https://icvtjsfcuwqjhgduntyw.supabase.co")
@@ -394,13 +474,61 @@ else:
     supabase = None
     print("[WARN] Supabase not available - uploads disabled")
 
+# Global Error Handlers
+@app.errorhandler(404)
+def not_found_error(error):
+    """Handle 404 errors"""
+    logger.warning(f"404 Not Found: {request.url}")
+    return jsonify({
+        "error": "Resource not found",
+        "message": "The requested resource does not exist",
+        "status": 404
+    }), 404
+
+
+@app.errorhandler(500)
+def internal_error(error):
+    """Handle 500 errors"""
+    logger.error(f"500 Internal Server Error: {str(error)}")
+    return jsonify({
+        "error": "Internal server error",
+        "message": "An unexpected error occurred. Please try again later.",
+        "status": 500
+    }), 500
+
+
+@app.errorhandler(429)
+def ratelimit_error(error):
+    """Handle rate limit errors"""
+    logger.warning(f"Rate limit exceeded: {request.remote_addr}")
+    return jsonify({
+        "error": "Rate limit exceeded",
+        "message": "Too many requests. Please slow down and try again later.",
+        "status": 429
+    }), 429
+
+
+@app.errorhandler(Exception)
+def handle_exception(error):
+    """Handle all unhandled exceptions"""
+    logger.error(f"Unhandled exception: {str(error)}", exc_info=True)
+    return jsonify({
+        "error": "An error occurred",
+        "message": str(error),
+        "status": 500
+    }), 500
+
+
 # Utilities
 
 def init_db() -> None:
+    """Initialize database by creating all tables"""
     Base.metadata.create_all(bind=engine)
+    logger.info("Database tables created successfully")
 
 
 def seed_demo_data() -> None:
+    """Seed database with demo data for development/testing"""
     db = SessionLocal()
     try:
         # Seed test doctor if not exists - Niharika Pandey
@@ -520,6 +648,58 @@ def get_db():
 
 
 # JWT Token Functions
+def validate_password_strength(password: str) -> tuple[bool, str]:
+    """Validate password meets security requirements"""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters"
+    
+    if not any(c.isupper() for c in password):
+        return False, "Password must contain at least one uppercase letter"
+    
+    if not any(c.islower() for c in password):
+        return False, "Password must contain at least one lowercase letter"
+    
+    if not any(c.isdigit() for c in password):
+        return False, "Password must contain at least one number"
+    
+    # Optional: special character check
+    # special_chars = "!@#$%^&*()_+-=[]{}|;:,.<>?"
+    # if not any(c in special_chars for c in password):
+    #     return False, "Password must contain at least one special character"
+    
+    return True, "Password is strong"
+
+
+# Pydantic Models for Input Validation
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=8)
+    name: str = Field(min_length=2, max_length=100)
+    role: str = "patient"
+    
+    @field_validator('name')
+    @classmethod
+    def name_must_not_be_empty(cls, v):
+        if not v.strip():
+            raise ValueError('Name cannot be empty')
+        return v.strip()
+
+
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=1)
+
+
+class MessageRequest(BaseModel):
+    content: str = Field(min_length=1, max_length=5000)
+    sender: str = Field(pattern='^(patient|doctor)$')
+
+
+class ConsultationRequest(BaseModel):
+    doctor_id: Optional[int] = None
+    symptoms: str = Field(min_length=5, max_length=2000)
+
+
 def create_token(user_id: int, role: str = 'patient') -> str:
     now = datetime.now(timezone.utc)
     payload = {
@@ -532,6 +712,7 @@ def create_token(user_id: int, role: str = 'patient') -> str:
 
 
 def verify_token(token: str) -> Optional[dict]:
+    """Verify JWT token and return payload with user_id and role"""
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
         return {
@@ -539,11 +720,12 @@ def verify_token(token: str) -> Optional[dict]:
             'role': payload.get('role', 'patient')
         }
     except jwt.InvalidTokenError as e:
-        print(f"[ERROR] Token verification failed: {str(e)}")
+        logger.error(f"Token verification failed: {str(e)}")
         return None
 
 
 def get_current_user() -> Optional[User]:
+    """Get current authenticated patient user from Bearer token"""
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         return None
@@ -561,6 +743,7 @@ def get_current_user() -> Optional[User]:
 
 
 def get_current_doctor() -> Optional[Doctor]:
+    """Get current authenticated doctor from Bearer token"""
     auth_header = request.headers.get('Authorization', '')
     if not auth_header.startswith('Bearer '):
         return None
@@ -737,103 +920,113 @@ def test():
 
 # Routes: Authentication
 @app.post("/api/auth/register")
+@limiter.limit("3 per minute")  # Rate limit: 3 registrations per minute
 def register():
-    data = request.get_json(force=True, silent=True) or {}
-    
-    email = data.get('email', '').strip()
-    password = data.get('password', '').strip()
-    name = data.get('name', '').strip()
-    role = data.get('role', 'patient')
-    
-    # Only patients can register - doctors are added by admin
-    if role != 'patient':
-        return jsonify({"error": "Only patients can register. Doctors are added by administrator."}), 403
-    
-    if not email or not password or not name:
-        return jsonify({"error": "Email, password, and name are required"}), 400
-    
-    if len(password) < 6:
-        return jsonify({"error": "Password must be at least 6 characters"}), 400
-    
-    db = SessionLocal()
     try:
-        # Check if user already exists
-        existing_user = db.query(User).filter(User.email == email).first()
-        if existing_user:
-            return jsonify({"error": "Email already registered"}), 400
+        data = request.get_json(force=True, silent=True) or {}
+        # Validate input with Pydantic
+        register_data = RegisterRequest(**data)
         
-        # Create new user (patient only)
-        user = User(
-            name=name,
-            email=email,
-            role='patient'  # Force patient role
-        )
-        user.set_password(password)
+        # Only patients can register - doctors are added by admin
+        if register_data.role != 'patient':
+            return jsonify({"error": "Only patients can register. Doctors are added by administrator."}), 403
         
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # Validate password strength
+        is_valid, message = validate_password_strength(register_data.password)
+        if not is_valid:
+            return jsonify({"error": message}), 400
         
-        # Generate token
-        token = create_token(user.id, 'patient')
-        
-        return jsonify({
-            "token": token,
-            "user": user.to_dict(),
-            "role": "patient"
-        }), 201
-    except Exception as e:
-        db.rollback()
-        return jsonify({"error": str(e)}), 500
-    finally:
-        db.close()
-
-
-@app.post("/api/auth/login")
-def login():
-    data = request.get_json(force=True, silent=True) or {}
-    
-    email = data.get('email', '').strip().lower()
-    password = data.get('password', '').strip()
-    
-    if not email or not password:
-        return jsonify({"error": "Email and password are required"}), 400
-    
-    db = SessionLocal()
-    try:
-        # Check if it's a doctor first
-        doctor = db.query(Doctor).filter(Doctor.email == email).first()
-        if doctor and doctor.check_password(password):
-            if not doctor.is_active:
-                return jsonify({"error": "Doctor account is inactive"}), 403
+        db = SessionLocal()
+        try:
+            # Check if user already exists
+            existing_user = db.query(User).filter(User.email == register_data.email).first()
+            if existing_user:
+                return jsonify({"error": "Email already registered"}), 400
             
-            token = create_token(doctor.id, 'doctor')
-            print(f"[INFO] Doctor login: {doctor.name}")
-            return jsonify({
-                "token": token,
-                "user": doctor.to_dict(),
-                "role": "doctor"
-            }), 200
-        
-        # Check if it's a user (patient or admin)
-        user = db.query(User).filter(User.email == email).first()
-        if user and user.check_password(password):
-            # Check if user is active (for all roles)
-            if hasattr(user, 'is_active') and not user.is_active:
-                return jsonify({"error": "Account is inactive"}), 403
+            # Create new user (patient only)
+            user = User(
+                name=register_data.name,
+                email=register_data.email,
+                role='patient'  # Force patient role
+            )
+            user.set_password(register_data.password)
             
-            role = user.role.lower() if user.role else 'patient'
-            token = create_token(user.id, role)
-            print(f"[INFO] {role.capitalize()} login: {user.name}")
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            
+            # Generate token
+            token = create_token(user.id, 'patient')
+            logger.info(f"New patient registered: {user.email}")
+            
             return jsonify({
                 "token": token,
                 "user": user.to_dict(),
-                "role": role
-            }), 200
+                "role": "patient"
+            }), 201
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Registration error: {str(e)}")
+            return jsonify({"error": str(e)}), 500
+        finally:
+            db.close()
+    except Exception as e:
+        # Pydantic validation error
+        logger.warning(f"Registration validation failed: {str(e)}")
+        return jsonify({"error": f"Validation error: {str(e)}"}), 400
+
+
+@app.post("/api/auth/login")
+@limiter.limit("5 per minute")  # Rate limit: 5 login attempts per minute
+def login():
+    try:
+        data = request.get_json(force=True, silent=True) or {}
+        # Validate input with Pydantic
+        login_data = LoginRequest(**data)
         
-        return jsonify({"error": "Invalid email or password"}), 401
-    finally:
-        db.close()
+        email = login_data.email.lower()
+        password = login_data.password
+        
+        db = SessionLocal()
+        try:
+            # Check if it's a doctor first
+            doctor = db.query(Doctor).filter(Doctor.email == email).first()
+            if doctor and doctor.check_password(password):
+                if not doctor.is_active:
+                    return jsonify({"error": "Doctor account is inactive"}), 403
+                
+                token = create_token(doctor.id, 'doctor')
+                logger.info(f"Doctor login successful: {doctor.name}")
+                return jsonify({
+                    "token": token,
+                    "user": doctor.to_dict(),
+                    "role": "doctor"
+                }), 200
+            
+            # Check if it's a user (patient or admin)
+            user = db.query(User).filter(User.email == email).first()
+            if user and user.check_password(password):
+                # Check if user is active (for all roles)
+                if hasattr(user, 'is_active') and not user.is_active:
+                    return jsonify({"error": "Account is inactive"}), 403
+                
+                role = user.role.lower() if user.role else 'patient'
+                token = create_token(user.id, role)
+                logger.info(f"{role.capitalize()} login successful: {user.name}")
+                return jsonify({
+                    "token": token,
+                    "user": user.to_dict(),
+                    "role": role
+                }), 200
+            
+            logger.warning(f"Failed login attempt for: {email}")
+            return jsonify({"error": "Invalid email or password"}), 401
+        finally:
+            db.close()
+    except Exception as e:
+        # Pydantic validation error
+        logger.warning(f"Login validation failed: {str(e)}")
+        return jsonify({"error": f"Validation error: {str(e)}"}), 400
 
 
 @app.get("/api/auth/me")
@@ -843,6 +1036,40 @@ def get_current_user_info():
         return jsonify({"error": "Unauthorized"}), 401
     
     return jsonify(user.to_dict()), 200
+
+
+@app.get("/api/auth/verify")
+def verify_token_endpoint():
+    """Verify token and return user info with correct role"""
+    identity = get_token_identity()
+    if not identity:
+        return jsonify({"error": "Invalid or expired token"}), 401
+    
+    db = SessionLocal()
+    try:
+        role = identity.get('role', 'patient')
+        user_id = identity.get('user_id')
+        
+        if role == 'doctor':
+            doctor = db.query(Doctor).filter(Doctor.id == user_id).first()
+            if not doctor or not doctor.is_active:
+                return jsonify({"error": "Doctor not found or inactive"}), 401
+            return jsonify({
+                "user": doctor.to_dict(),
+                "role": "doctor",
+                "user_id": doctor.id
+            }), 200
+        else:
+            user = db.query(User).filter(User.id == user_id).first()
+            if not user:
+                return jsonify({"error": "User not found"}), 401
+            return jsonify({
+                "user": user.to_dict(),
+                "role": role,
+                "user_id": user.id
+            }), 200
+    finally:
+        db.close()
 
 
 @app.put("/api/auth/me")
@@ -890,53 +1117,67 @@ def update_current_user():
 
 @app.post("/api/auth/google")
 def google_auth():
+    """Authenticate using a Google ID token from Google Identity Services.
+
+    Expects JSON: { "token": "<credential>", "role": "patient" }
+    Verifies the token against Google's public keys and checks audience
+    against GOOGLE_CLIENT_ID.
+    """
     data = request.get_json(force=True, silent=True) or {}
-    
-    token = data.get('token')
-    role = data.get('role', 'patient')
-    
+
+    token = data.get("token")
+    role = (data.get("role") or "patient").lower()
+
     if not token:
         return jsonify({"error": "Google token is required"}), 400
-    
-    # TODO: Verify Google token with Google API
-    # For now, we'll create a mock implementation
-    
+
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({"error": "Google Sign-In is not configured on the server"}), 500
+
+    # Verify token with Google
+    try:
+        request_adapter = google_requests.Request()
+        idinfo = google_id_token.verify_oauth2_token(token, request_adapter, GOOGLE_CLIENT_ID)
+        # idinfo contains: aud, azp, email, email_verified, name, picture, sub, given_name, family_name, etc.
+        if not idinfo.get("email") or not idinfo.get("email_verified", False):
+            return jsonify({"error": "Google email not verified"}), 401
+    except Exception as e:
+        logger.warning(f"Google ID token verification failed: {e}")
+        return jsonify({"error": "Invalid Google token"}), 401
+
+    email = idinfo.get("email", "").lower()
+    name = idinfo.get("name") or (
+        ((idinfo.get("given_name") or "").strip() + " " + (idinfo.get("family_name") or "").strip()).strip()
+    ) or "Google User"
+    picture = idinfo.get("picture")
+
+    # Only allow patient role from public Google sign-in
+    if role not in ("patient", "doctor", "admin"):
+        role = "patient"
+    if role != "patient":
+        # Hardening: prevent creating privileged accounts via Google sign-in
+        role = "patient"
+
     db = SessionLocal()
     try:
-        # This is a simplified implementation
-        # In production, verify the token with Google's servers
-        try:
-            payload = jwt.decode(token, options={"verify_signature": False})
-        except:
-            return jsonify({"error": "Invalid Google token"}), 401
-        
-        email = payload.get('email', '')
-        name = payload.get('name', '')
-        
-        if not email or not name:
-            return jsonify({"error": "Invalid Google token - missing email or name"}), 401
-        
-        # Check if user exists
         user = db.query(User).filter(User.email == email).first()
-        
         if not user:
-            # Create new user from Google data
             user = User(
-                name=name,
+                name=name[:100] if name else "Google User",
                 email=email,
-                role=role,
-                password=bcrypt.hashpw(os.urandom(32), bcrypt.gensalt()).decode('utf-8')
+                role="patient",
+                photo_url=picture if picture else None,
+                password=bcrypt.hashpw(os.urandom(32), bcrypt.gensalt()).decode("utf-8"),
             )
             db.add(user)
             db.commit()
             db.refresh(user)
-        
-        # Generate token
-        auth_token = create_token(user.id)
-        
+
+        auth_token = create_token(user.id, user.role or "patient")
         return jsonify({
             "token": auth_token,
-            "user": user.to_dict()
+            "user": user.to_dict(),
+            "role": (user.role or "patient").lower(),
         }), 200
     finally:
         db.close()
@@ -1300,6 +1541,7 @@ def delete_appointment(appointment_id: int):
 # ============================================
 
 @app.get("/api/doctor/dashboard")
+@limiter.exempt
 def doctor_dashboard():
     """Get doctor dashboard statistics"""
     doctor = get_current_doctor()
@@ -1321,26 +1563,54 @@ def doctor_dashboard():
             Consultation.status == 'active'
         ).count()
         
-        total_patients = db.query(Consultation).filter(
+        # Count unique patients properly
+        from sqlalchemy import func
+        total_patients = db.query(func.count(func.distinct(Consultation.patient_id))).filter(
             Consultation.doctor_id == doctor.id
-        ).distinct(Consultation.patient_id).count()
+        ).scalar() or 0
         
-        # Get reports from patients who have consultations with this doctor
-        reports_awaiting = db.query(Consultation).join(
-            User, Consultation.patient_id == User.id
-        ).filter(
+        # Get unviewed documents from patients who have consultations with this doctor
+        # Get all consultations with this doctor
+        consultations = db.query(Consultation).filter(
             Consultation.doctor_id == doctor.id
-        ).count()
+        ).all()
+        
+        patient_ids = [c.patient_id for c in consultations]
+        
+        if patient_ids:
+            # Get all documents from these patients
+            all_documents = db.query(Document).filter(
+                Document.user_id.in_(patient_ids)
+            ).all()
+            
+            document_ids = [doc.id for doc in all_documents]
+            
+            if document_ids:
+                # Get documents that have been viewed by this doctor
+                viewed_document_ids = db.query(DocumentView.document_id).filter(
+                    DocumentView.doctor_id == doctor.id,
+                    DocumentView.document_id.in_(document_ids)
+                ).distinct().all()
+                viewed_ids = [row[0] for row in viewed_document_ids]
+                
+                # Count unviewed documents
+                reports_awaiting = len(document_ids) - len(viewed_ids)
+            else:
+                reports_awaiting = 0
+        else:
+            reports_awaiting = 0
         
         # Today's activity stats
-        patients_today = db.query(Consultation).filter(
+        from sqlalchemy import func
+        patients_today = db.query(func.count(func.distinct(Consultation.patient_id))).filter(
             Consultation.doctor_id == doctor.id,
             Consultation.created_at >= today_start
-        ).distinct(Consultation.patient_id).count()
+        ).scalar() or 0
         
         completed_today = db.query(Consultation).filter(
             Consultation.doctor_id == doctor.id,
             Consultation.status == 'ended',
+            Consultation.ended_at.isnot(None),
             Consultation.ended_at >= today_start
         ).count()
         
@@ -1374,6 +1644,19 @@ def doctor_requests():
     
     db = SessionLocal()
     try:
+        # Mark all consultation request notifications as read when viewing requests page
+        # This ensures the badge count decreases when doctor views the page
+        consultation_notifications = db.query(Notification).filter(
+            Notification.user_id == doctor.id,
+            Notification.role == 'doctor',
+            Notification.type == 'consult_request',
+            Notification.is_read == False
+        ).all()
+        for notif in consultation_notifications:
+            notif.is_read = True
+        if consultation_notifications:
+            db.commit()
+        
         # Get all pending requests for this doctor (or unassigned pending requests)
         requests = db.query(Consultation).filter(
             ((Consultation.doctor_id == doctor.id) | (Consultation.doctor_id == None)),
@@ -1457,6 +1740,21 @@ def accept_consultation(consultation_id):
         consultation.started_at = datetime.now()
         consultation.doctor_id = doctor.id
         db.commit()
+        
+        # Mark related notification as read when accepting
+        related_notifications = db.query(Notification).filter(
+            Notification.user_id == doctor.id,
+            Notification.role == 'doctor',
+            Notification.type == 'consult_request',
+            Notification.is_read == False
+        ).all()
+        for notif in related_notifications:
+            # Check if notification message contains this consultation info
+            if str(consultation.id) in notif.message or consultation.patient_id:
+                notif.is_read = True
+        
+        db.commit()
+        
         patient = db.query(User).filter(User.id == consultation.patient_id).first()
         if patient:
             create_notification(
@@ -1490,11 +1788,24 @@ def reject_consultation(consultation_id):
         if not consultation:
             return jsonify({"error": "Consultation not found"}), 404
         
+        # Mark related notification as read when rejecting
+        related_notifications = db.query(Notification).filter(
+            Notification.user_id == doctor.id,
+            Notification.role == 'doctor',
+            Notification.type == 'consult_request',
+            Notification.is_read == False
+        ).all()
+        for notif in related_notifications:
+            # Check if notification message contains this consultation info
+            if str(consultation.id) in notif.message or consultation.patient_id:
+                notif.is_read = True
+        
+        patient_id_for_notification = consultation.patient_id
         db.delete(consultation)
         db.commit()
 
         create_notification(
-            consultation.patient_id,
+            patient_id_for_notification,
             'patient',
             'Consultation update',
             f"{doctor.name} was unavailable for this request.",
@@ -1632,12 +1943,17 @@ def submit_rating(consultation_id):
 
 @app.get("/api/consultation/<int:consultation_id>/messages")
 def get_consultation_messages(consultation_id):
-    """Get messages for a consultation"""
+    """Get messages for a consultation with pagination"""
     doctor = get_current_doctor()
     user = get_current_user()
     
     if not doctor and not user:
         return jsonify({"error": "Unauthorized"}), 401
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 200)  # Max 200 messages per page
     
     db = SessionLocal()
     try:
@@ -1651,22 +1967,56 @@ def get_consultation_messages(consultation_id):
         if user and consultation.patient_id != user.id:
             return jsonify({"error": "Unauthorized"}), 403
         
-        messages = db.query(Message).filter(
+        # Query with pagination
+        query = db.query(Message).filter(
             Message.consultation_id == consultation_id
-        ).order_by(Message.sent_at.asc()).all()
+        ).order_by(Message.sent_at.asc())
         
+        total = query.count()
+        messages = query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Get all consultation documents
+        consultation_docs = {}
+        if consultation:
+            for link in consultation.documents:
+                if link.document:
+                    consultation_docs[link.document_id] = link.document.to_dict()
+        
+        # Build attachments map for these messages
+        message_ids = [m.id for m in messages]
+        attachments_map = {mid: [] for mid in message_ids}
+        if message_ids:
+            links = db.query(MessageDocument).filter(MessageDocument.message_id.in_(message_ids)).all()
+            for link in links:
+                if link.document:
+                    attachments_map.setdefault(link.message_id, []).append(link.document.to_dict())
+
         result = []
         for msg in messages:
-            result.append({
+            msg_data = {
                 "id": msg.id,
                 "sender_type": msg.sender_type,
                 "sender_id": msg.sender_id,
                 "content": msg.content,
                 "sent_at": msg.sent_at.isoformat() if msg.sent_at else None,
-                "is_read": msg.is_read
-            })
+                "is_read": msg.is_read,
+                "attachments": attachments_map.get(msg.id, [])
+            }
+            result.append(msg_data)
         
-        return jsonify(result), 200
+        # Add consultation documents separately
+        consultation_docs_list = list(consultation_docs.values())
+        
+        return jsonify({
+            "messages": result,
+            "documents": consultation_docs_list,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        }), 200
     finally:
         db.close()
 
@@ -1743,7 +2093,7 @@ def send_message(consultation_id):
         db.commit()
         db.refresh(message)
         
-        # Link documents to consultation if provided (only patients can share documents)
+        # Link documents to consultation and this message if provided (only patients can share documents for now)
         if document_ids and user:
             for doc_id in document_ids:
                 doc = db.query(Document).filter(Document.id == doc_id, Document.user_id == user.id).first()
@@ -1759,6 +2109,13 @@ def send_message(consultation_id):
                             document_id=doc_id
                         )
                         db.add(link)
+
+                    # Create message attachment link
+                    msg_link = MessageDocument(
+                        message_id=message.id,
+                        document_id=doc_id
+                    )
+                    db.add(msg_link)
             db.commit()
 
         # Check if recipient is actively viewing this consultation
@@ -1864,6 +2221,53 @@ def doctor_reports():
         db.close()
 
 
+@app.post("/api/doctor/reports/<int:document_id>/view")
+def mark_document_viewed(document_id):
+    """Mark a document as viewed by the doctor"""
+    doctor = get_current_doctor()
+    if not doctor:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    db = SessionLocal()
+    try:
+        # Verify the document exists and belongs to a patient who consulted with this doctor
+        document = db.query(Document).filter(Document.id == document_id).first()
+        if not document:
+            return jsonify({"error": "Document not found"}), 404
+        
+        # Verify the patient has consulted with this doctor
+        consultation = db.query(Consultation).filter(
+            Consultation.doctor_id == doctor.id,
+            Consultation.patient_id == document.user_id
+        ).first()
+        
+        if not consultation:
+            return jsonify({"error": "Unauthorized: Document not associated with this doctor"}), 403
+        
+        # Check if already viewed
+        existing_view = db.query(DocumentView).filter(
+            DocumentView.document_id == document_id,
+            DocumentView.doctor_id == doctor.id
+        ).first()
+        
+        if not existing_view:
+            # Create new view record
+            document_view = DocumentView(
+                document_id=document_id,
+                doctor_id=doctor.id,
+                viewed_at=datetime.now(timezone.utc)
+            )
+            db.add(document_view)
+            db.commit()
+        
+        return jsonify({"success": True, "message": "Document marked as viewed"}), 200
+    except Exception as e:
+        db.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        db.close()
+
+
 @app.get("/api/doctor/patients")
 def doctor_patients():
     """Get all patients who have consulted with this doctor"""
@@ -1924,7 +2328,23 @@ def mark_patient_cured(patient_id):
         if not patient:
             return jsonify({"error": "Patient not found"}), 404
         
+        # Mark patient as cured
         patient.is_cured = True
+        
+        # End any active consultations with this patient for this doctor
+        # This ensures the "completed" count in today's activity is updated
+        active_consultations = db.query(Consultation).filter(
+            Consultation.doctor_id == doctor.id,
+            Consultation.patient_id == patient_id,
+            Consultation.status.in_(['pending', 'active'])
+        ).all()
+        
+        now = datetime.now()
+        for cons in active_consultations:
+            cons.status = 'ended'
+            if not cons.ended_at:
+                cons.ended_at = now
+        
         db.commit()
         db.refresh(patient)
         
@@ -1988,6 +2408,8 @@ def update_doctor_profile():
             db_doctor.hospital = data['hospital']
         if 'phone' in data:
             db_doctor.phone = data['phone']
+        if 'bio' in data:
+            db_doctor.bio = data['bio']
         if 'photo_url' in data:
             db_doctor.photo_url = data['photo_url']
         if 'id_card_url' in data:
@@ -2183,24 +2605,49 @@ def delete_document(document_id: int):
 @app.get("/api/notifications")
 def list_notifications():
     identity = get_token_identity()
+    logger.info(f"[NOTIFICATIONS] Identity: {identity}, Auth header: {request.headers.get('Authorization', 'None')[:40] if request.headers.get('Authorization') else 'None'}")
     if not identity:
+        logger.error("[NOTIFICATIONS] No identity - returning 401")
         return jsonify({"error": "Unauthorized"}), 401
 
     summary_only = request.args.get('summary', 'false').lower() == 'true'
+    
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 50, type=int)
+    per_page = min(per_page, 100)  # Max 100 notifications per page
 
     db = SessionLocal()
     try:
-        base_query = db.query(Notification).filter(
-            Notification.user_id == identity['user_id'],
-            Notification.role == identity.get('role', 'patient')
-        )
+        # For doctors, use doctor_id instead of user_id
+        if identity.get('role') == 'doctor':
+            doctor = db.query(Doctor).filter(Doctor.id == identity['user_id']).first()
+            if not doctor:
+                return jsonify({'total': 0, 'unread': 0}), 200
+            
+            # Get notifications for this doctor
+            base_query = db.query(Notification).filter(
+                Notification.user_id == doctor.id,
+                Notification.role == 'doctor'
+            )
+        else:
+            base_query = db.query(Notification).filter(
+                Notification.user_id == identity['user_id'],
+                Notification.role == identity.get('role', 'patient')
+            )
 
         if summary_only:
             total = base_query.count()
             unread = base_query.filter(Notification.is_read == False).count()
-            return jsonify({'total': total, 'unread': unread}), 200
+            # Ensure we return valid numbers
+            return jsonify({'total': max(0, total), 'unread': max(0, unread)}), 200
 
-        notifications = base_query.order_by(Notification.created_at.desc()).all()
+        # Apply pagination
+        query = base_query.order_by(Notification.created_at.desc())
+        total = query.count()
+        notifications = query.offset((page - 1) * per_page).limit(per_page).all()
+        
+        # Return array directly for frontend compatibility
         return jsonify([n.to_dict() for n in notifications]), 200
     finally:
         db.close()
@@ -2282,7 +2729,7 @@ def request_consultation():
     
     data = request.get_json(force=True, silent=True) or {}
     doctor_id = data.get('doctor_id')  # Optional - can be None for general request
-    primary_symptoms = data.get('primary_symptoms', '')
+    symptoms = data.get('symptoms', data.get('primary_symptoms', ''))  # Support both 'symptoms' and 'primary_symptoms'
     llm_summary = data.get('llm_summary', '')
     document_ids = data.get('document_ids', [])
 
@@ -2303,13 +2750,16 @@ def request_consultation():
             doctor_id=doctor_id if doctor_id else None,
             patient_id=user.id,
             status='pending',
-            primary_symptoms=primary_symptoms,
+            primary_symptoms=symptoms,
             llm_summary=llm_summary
         )
         
         db.add(consultation)
         db.commit()
         db.refresh(consultation)
+
+        # Get patient name for notifications
+        patient_name = user.name or 'A patient'
 
         shared_document_ids = []
         if document_ids:
@@ -2329,43 +2779,45 @@ def request_consultation():
             db.commit()
             db.refresh(consultation)
         
-            patient_name = user.name or 'A patient'
-        
-        if doctor_id and doctor:
-            # Specific doctor request - notify that doctor
-            create_notification(
-                doctor.id,
-                'doctor',
-                'New consultation request',
-                f"{patient_name} requested a consultation with you.",
-                'consult_request'
-            )
-            create_notification(
-                user.id,
-                'patient',
-                'Consultation requested',
-                f"We notified {doctor.name} about your request.",
-                'consult_request'
-            )
-        else:
-            # General request - notify all active doctors
-            active_doctors = db.query(Doctor).filter(Doctor.is_active == True).all()
-            for doc in active_doctors:
+        # Send notifications (wrapped in try-except to ensure success response is always sent)
+        try:
+            if doctor_id and doctor:
+                # Specific doctor request - notify that doctor
                 create_notification(
-                    doc.id,
+                    doctor.id,
                     'doctor',
                     'New consultation request',
-                    f"{patient_name} requested a consultation. Review and accept if available.",
+                    f"{patient_name} requested a consultation with you.",
                     'consult_request'
                 )
-            # Notify patient
-            create_notification(
-                user.id,
-                'patient',
-                'Consultation requested',
-                "Your consultation request has been sent to available doctors.",
-                'consult_request'
-            )
+                create_notification(
+                    user.id,
+                    'patient',
+                    'Consultation requested',
+                    f"We notified {doctor.name} about your request.",
+                    'consult_request'
+                )
+            else:
+                # General request - notify all active doctors
+                active_doctors = db.query(Doctor).filter(Doctor.is_active == True).all()
+                for doc in active_doctors:
+                    create_notification(
+                        doc.id,
+                        'doctor',
+                        'New consultation request',
+                        f"{patient_name} requested a consultation. Review and accept if available.",
+                        'consult_request'
+                    )
+                # Notify patient
+                create_notification(
+                    user.id,
+                    'patient',
+                    'Consultation requested',
+                    "Your consultation request has been sent to available doctors.",
+                    'consult_request'
+                )
+        except Exception as notif_error:
+            logger.warning(f"Failed to send notifications for consultation {consultation.id}: {notif_error}")
 
         return jsonify({
             "id": consultation.id,
@@ -2381,10 +2833,19 @@ def request_consultation():
 
 @app.get("/api/doctors")
 def list_doctors():
-    """List all active doctors"""
+    """List all active doctors with pagination"""
+    # Pagination parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = request.args.get('per_page', 20, type=int)
+    per_page = min(per_page, 100)  # Max 100 items per page
+    
     db = SessionLocal()
     try:
-        doctors = db.query(Doctor).filter(Doctor.is_active == True).all()
+        # Query with pagination
+        query = db.query(Doctor).filter(Doctor.is_active == True)
+        total = query.count()
+        doctors = query.offset((page - 1) * per_page).limit(per_page).all()
+        
         result = []
         for doctor in doctors:
             result.append({
@@ -2395,7 +2856,16 @@ def list_doctors():
                 "photo_url": doctor.photo_url,
                 "is_online": doctor.is_online
             })
-        return jsonify(result), 200
+        
+        return jsonify({
+            "data": result,
+            "pagination": {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "pages": (total + per_page - 1) // per_page
+            }
+        }), 200
     finally:
         db.close()
 
@@ -2413,15 +2883,107 @@ def get_doctor(doctor_id):
             "id": doctor.id,
             "name": doctor.name,
             "email": doctor.email,
+            "phone": doctor.phone if hasattr(doctor, 'phone') else None,
             "specialization": doctor.specialization,
             "hospital": doctor.hospital,
             "photo_url": doctor.photo_url,
+            "id_card_url": doctor.id_card_url if hasattr(doctor, 'id_card_url') else None,
             "is_online": doctor.is_online,
             "is_verified": doctor.is_verified if hasattr(doctor, 'is_verified') else False,
             "experience": doctor.experience if hasattr(doctor, 'experience') else None,
             "language": doctor.language if hasattr(doctor, 'language') else None,
             "bio": doctor.bio if hasattr(doctor, 'bio') else None,
         }), 200
+    finally:
+        db.close()
+
+
+@app.get("/api/doctors/<int:doctor_id>/ratings")
+def get_doctor_ratings(doctor_id):
+    """Get ratings and reviews for a doctor"""
+    db = SessionLocal()
+    try:
+        doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+        if not doctor:
+            return jsonify({"error": "Doctor not found"}), 404
+        
+        # Get all ratings for this doctor
+        ratings = db.query(Rating).filter(Rating.doctor_id == doctor_id).order_by(Rating.created_at.desc()).all()
+        
+        # Calculate average rating
+        total_ratings = len(ratings)
+        average_rating = sum(r.doctor_rating for r in ratings) / total_ratings if total_ratings > 0 else 0
+        
+        # Format ratings with patient names
+        ratings_list = []
+        for rating in ratings:
+            patient = db.query(User).filter(User.id == rating.patient_id).first()
+            ratings_list.append({
+                "id": rating.id,
+                "doctor_rating": rating.doctor_rating,
+                "platform_rating": rating.platform_rating,
+                "feedback": rating.feedback,
+                "patient_name": patient.name if patient else "Anonymous",
+                "created_at": rating.created_at.isoformat() if rating.created_at else None
+            })
+        
+        return jsonify({
+            "ratings": ratings_list,
+            "average": round(average_rating, 1),
+            "total": total_ratings
+        }), 200
+    finally:
+        db.close()
+
+
+@app.get("/api/consultation/history")
+def get_consultation_history():
+    """Get consultation history for current user (patient or doctor)"""
+    token_data = get_token_identity()
+    if not token_data:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    user_id = token_data.get('user_id')
+    role = token_data.get('role', 'patient')
+    
+    db = SessionLocal()
+    try:
+        # Get consultations based on role - only ended consultations for history
+        if role == 'doctor':
+            consultations = db.query(Consultation).filter(
+                Consultation.doctor_id == user_id,
+                Consultation.status == 'ended'
+            ).order_by(Consultation.ended_at.desc()).all()
+        else:
+            consultations = db.query(Consultation).filter(
+                Consultation.patient_id == user_id,
+                Consultation.status == 'ended'
+            ).order_by(Consultation.ended_at.desc()).all()
+        
+        result = []
+        for cons in consultations:
+            doctor = db.query(Doctor).filter_by(id=cons.doctor_id).first() if cons.doctor_id else None
+            patient = db.query(User).filter_by(id=cons.patient_id).first()
+            rating = db.query(Rating).filter_by(consultation_id=cons.id).first()
+            
+            result.append({
+                'id': cons.id,
+                'status': cons.status,
+                'primary_symptoms': cons.primary_symptoms,
+                'llm_summary': cons.llm_summary,
+                'started_at': cons.started_at.isoformat() if cons.started_at else None,
+                'ended_at': cons.ended_at.isoformat() if cons.ended_at else None,
+                'created_at': cons.created_at.isoformat() if cons.created_at else None,
+                'doctor_id': cons.doctor_id,
+                'doctor_name': doctor.name if doctor else None,
+                'doctor_photo_url': doctor.photo_url if doctor else None,
+                'doctor_specialization': doctor.specialization if doctor else None,
+                'patient_id': cons.patient_id,
+                'patient_name': patient.name if patient else None,
+                'has_rating': rating is not None
+            })
+        
+        return jsonify(result), 200
     finally:
         db.close()
 
@@ -2453,6 +3015,86 @@ def get_active_consultations_patient():
             })
         
         return jsonify(result), 200
+    finally:
+        db.close()
+
+
+@app.get("/api/consultation/requests/pending")
+def get_pending_requests():
+    """Get pending consultation requests for current patient"""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    db = SessionLocal()
+    try:
+        consultations = db.query(Consultation).filter(
+            Consultation.patient_id == user.id,
+            Consultation.status == 'pending'
+        ).order_by(Consultation.created_at.desc()).all()
+        
+        result = []
+        for cons in consultations:
+            doctor = db.query(Doctor).filter(Doctor.id == cons.doctor_id).first() if cons.doctor_id else None
+            result.append({
+                "id": cons.id,
+                "doctor_id": cons.doctor_id,
+                "doctor_name": doctor.name if doctor else "Any Available Doctor",
+                "doctor_photo_url": doctor.photo_url if doctor else None,
+                "doctor_specialization": doctor.specialization if doctor else None,
+                "symptoms": cons.primary_symptoms,
+                "created_at": cons.created_at.isoformat() if cons.created_at else None,
+                "status": cons.status
+            })
+        
+        return jsonify(result), 200
+    finally:
+        db.close()
+
+
+@app.post("/api/consultation/request/<int:request_id>/cancel")
+def cancel_consultation_request(request_id):
+    """Cancel a pending consultation request"""
+    user = get_current_user()
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    db = SessionLocal()
+    try:
+        # Find the consultation request
+        consultation = db.query(Consultation).filter(
+            Consultation.id == request_id,
+            Consultation.patient_id == user.id,
+            Consultation.status == 'pending'
+        ).first()
+        
+        if not consultation:
+            return jsonify({"error": "Request not found or cannot be cancelled"}), 404
+        
+        # Delete the consultation request
+        db.delete(consultation)
+        db.commit()
+        
+        # Create notification for patient
+        create_notification(
+            user.id,
+            'patient',
+            'Request cancelled',
+            'Your consultation request has been cancelled.',
+            'consult_cancelled'
+        )
+        
+        # Notify doctor if specific doctor was requested
+        if consultation.doctor_id:
+            create_notification(
+                consultation.doctor_id,
+                'doctor',
+                'Request cancelled',
+                f'{user.name or "A patient"} cancelled their consultation request.',
+                'consult_cancelled'
+            )
+        
+        return jsonify({"message": "Request cancelled successfully"}), 200
     finally:
         db.close()
 
@@ -3001,21 +3643,28 @@ def admin_list_password_resets():
     
     db = SessionLocal()
     try:
+        # Get all password resets ordered by most recent first
         resets = db.query(PasswordReset).order_by(PasswordReset.requested_at.desc()).all()
         result = []
         for reset in resets:
             user = db.query(User).filter(User.id == reset.user_id).first()
-            result.append({
-                'id': reset.id,
-                'user_id': reset.user_id,
-                'user_email': user.email if user else None,
-                'user_name': user.name if user else None,
-                'status': reset.status,
-                'requested_at': reset.requested_at.isoformat() if reset.requested_at else None,
-                'resolved_at': reset.resolved_at.isoformat() if reset.resolved_at else None,
-                'reason': reset.reason,
-            })
+            if user:  # Only include resets for valid users
+                result.append({
+                    'id': reset.id,
+                    'user_id': reset.user_id,
+                    'user_email': user.email if user else None,
+                    'user_name': user.name if user else None,
+                    'status': reset.status,
+                    'requested_at': reset.requested_at.isoformat() if reset.requested_at else None,
+                    'resolved_at': reset.resolved_at.isoformat() if reset.resolved_at else None,
+                    'reason': reset.reason,
+                })
         return jsonify(result), 200
+    except Exception as e:
+        print(f"[ERROR] Failed to list password resets: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": f"Failed to load password reset requests: {str(e)}"}), 500
     finally:
         db.close()
 
@@ -3086,9 +3735,17 @@ def admin_audit_logs():
         db.close()
 
 
-@app.post("/api/auth/forgot")
+@app.route("/api/auth/forgot", methods=["POST", "OPTIONS"])
 def forgot_password():
     """Request password reset - creates a request for admin"""
+    # Handle CORS preflight
+    if request.method == "OPTIONS":
+        response = jsonify({})
+        response.headers.add("Access-Control-Allow-Origin", "*")
+        response.headers.add("Access-Control-Allow-Methods", "POST, OPTIONS")
+        response.headers.add("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        return response
+    
     data = request.get_json(force=True, silent=True) or {}
     email = (data.get('email') or '').strip().lower()
     
@@ -3097,47 +3754,267 @@ def forgot_password():
     
     db = SessionLocal()
     try:
-        # Check if user exists (patient or doctor)
+        # Check if user exists (patient)
         user = db.query(User).filter(User.email == email).first()
-        doctor = None
-        if not user:
-            doctor = db.query(Doctor).filter(Doctor.email == email).first()
         
+        # Check if doctor exists
+        doctor = db.query(Doctor).filter(Doctor.email == email).first()
+        
+        # If neither exists, don't reveal if email exists (security best practice)
         if not user and not doctor:
-            # Don't reveal if email exists
             return jsonify({"message": "If this email exists, a password reset request has been created"}), 200
         
-        # Create password reset request
-        target_user = user if user else None
-        if doctor and not user:
-            # Create a user record for doctor if needed, or handle separately
-            # For now, we'll create reset request for the user_id if doctor has one
-            # This is a simplified approach
-            return jsonify({"message": "If this email exists, a password reset request has been created"}), 200
-        
-        if target_user:
+        # Handle patient password reset
+        if user:
             # Check for existing pending request
             existing = db.query(PasswordReset).filter(
-                PasswordReset.user_id == target_user.id,
+                PasswordReset.user_id == user.id,
                 PasswordReset.status == 'pending'
             ).first()
             
             if existing:
                 return jsonify({"message": "Password reset request already pending"}), 200
             
+            # Create password reset request
             reset = PasswordReset(
-                user_id=target_user.id,
-                status='pending'
+                user_id=user.id,
+                status='pending',
+                requested_at=datetime.now(timezone.utc)
             )
             db.add(reset)
             db.commit()
+            db.refresh(reset)  # Refresh to get the ID
+            
+            print(f"[INFO] Password reset request created: ID={reset.id}, User ID={user.id}, Email={user.email}")
             
             return jsonify({"message": "Password reset request created. Admin will review it."}), 200
+        
+        # Handle doctor password reset
+        # Note: Doctors don't have a User record, so we need to handle this differently
+        # For now, we'll return a message that admin can reset it manually
+        if doctor:
+            return jsonify({
+                "message": "Doctor password resets must be handled by admin. Please contact support or ask an admin to reset your password."
+            }), 200
+            
     except Exception as e:
         db.rollback()
-        return jsonify({"error": str(e)}), 500
+        # Log the error for debugging
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"[ERROR] Password reset failed: {str(e)}")
+        print(f"[ERROR] Traceback: {error_trace}")
+        return jsonify({"error": f"Failed to create password reset request: {str(e)}"}), 500
     finally:
         db.close()
+
+
+# Health check and database diagnostics endpoint
+@app.get("/api/health")
+def health_check():
+    """Check system health and database status"""
+    db = SessionLocal()
+    try:
+        # Test database connection
+        db.execute(text("SELECT 1"))
+        
+        # Get table counts
+        user_count = db.query(User).count()
+        doctor_count = db.query(Doctor).count()
+        consultation_count = db.query(Consultation).count()
+        message_count = db.query(Message).count()
+        
+        # Check indexes (for SQLite)
+        inspector = inspect(engine)
+        indexes_info = {}
+        for table_name in ['users', 'consultations', 'messages', 'doctors', 'ratings']:
+            indexes = inspector.get_indexes(table_name)
+            indexes_info[table_name] = [idx['name'] for idx in indexes]
+        
+        return jsonify({
+            "status": "healthy",
+            "database": "connected",
+            "statistics": {
+                "users": user_count,
+                "doctors": doctor_count,
+                "consultations": consultation_count,
+                "messages": message_count
+            },
+            "indexes": indexes_info,
+            "pool_info": {
+                "pool_size": engine.pool.size() if hasattr(engine.pool, 'size') else "N/A (SQLite)",
+                "checked_in": engine.pool.checkedin() if hasattr(engine.pool, 'checkedin') else "N/A"
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Health check failed: {str(e)}")
+        return jsonify({
+            "status": "unhealthy",
+            "error": str(e)
+        }), 500
+    finally:
+        db.close()
+
+
+@app.post("/api/feedback")
+def send_feedback():
+    """Send feedback email from patient"""
+    user = get_current_user()
+    doctor = get_current_doctor()
+    
+    if not user and not doctor:
+        return jsonify({"error": "Unauthorized"}), 401
+    
+    data = request.get_json(force=True, silent=True) or {}
+    subject = data.get('subject', '').strip()
+    message = data.get('message', '').strip()
+    
+    if not subject or not message:
+        return jsonify({"error": "Subject and message are required"}), 400
+    
+    sender_email = (user.email if user else doctor.email) or "unknown@medicare.com"
+    sender_name = (user.name if user else doctor.name) or "User"
+    role = "Patient" if user else "Doctor"
+    
+    # Log feedback to console
+    logger.info(f"FEEDBACK RECEIVED:")
+    logger.info(f"From: {sender_name} ({sender_email}) - Role: {role}")
+    logger.info(f"Subject: {subject}")
+    logger.info(f"Message: {message}")
+    logger.info("=" * 80)
+    
+    # Send actual email
+    try:
+        import smtplib
+        from email.mime.text import MIMEText
+        from email.mime.multipart import MIMEMultipart
+        
+        # Create email message
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = f"Medicare Feedback: {subject}"
+        msg['From'] = "Medicare Portal <noreply@medicare.com>"
+        msg['To'] = "aadipandey223@gmail.com"
+        msg['Reply-To'] = sender_email
+        
+        # Create HTML and plain text versions
+        text_content = f"""
+        Medicare Feedback Received
+        
+        From: {sender_name}
+        Email: {sender_email}
+        Role: {role}
+        Subject: {subject}
+        
+        Message:
+        {message}
+        
+        ---
+        You can reply directly to this email to respond to {sender_name}.
+        """
+        
+        html_content = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; border-radius: 10px;">
+                <h2 style="color: #8B5CF6; border-bottom: 3px solid #8B5CF6; padding-bottom: 10px;">Medicare Feedback</h2>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <p><strong>From:</strong> {sender_name}</p>
+                    <p><strong>Email:</strong> <a href="mailto:{sender_email}">{sender_email}</a></p>
+                    <p><strong>Role:</strong> <span style="background: #8B5CF6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 12px;">{role}</span></p>
+                    <p><strong>Subject:</strong> {subject}</p>
+                </div>
+                
+                <div style="background: white; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                    <h3 style="color: #8B5CF6; margin-top: 0;">Message:</h3>
+                    <p style="white-space: pre-wrap;">{message}</p>
+                </div>
+                
+                <p style="color: #6B7280; font-size: 14px; text-align: center; margin-top: 20px;">
+                    You can reply directly to this email to respond to {sender_name}.
+                </p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Attach both versions
+        part1 = MIMEText(text_content, 'plain')
+        part2 = MIMEText(html_content, 'html')
+        msg.attach(part1)
+        msg.attach(part2)
+        
+        # Try to send email via Gmail SMTP
+        try:
+            with smtplib.SMTP('smtp.gmail.com', 587, timeout=10) as server:
+                server.starttls()
+                # If you have app password set in environment
+                email_user = os.getenv('EMAIL_USER', 'aadipandey223@gmail.com')
+                email_password = os.getenv('EMAIL_PASSWORD', '')
+                
+                if email_password:
+                    server.login(email_user, email_password)
+                    server.send_message(msg)
+                    logger.info("✅ Email sent successfully via SMTP")
+                else:
+                    logger.warning("⚠️  EMAIL_PASSWORD not set - email not sent. Set EMAIL_PASSWORD environment variable.")
+        except Exception as smtp_error:
+            logger.error(f"❌ SMTP Error: {str(smtp_error)}")
+            # Continue anyway - at least we logged the feedback
+        
+        return jsonify({
+            "success": True,
+            "message": "Feedback sent successfully! We'll get back to you soon.",
+            "feedback": {
+                "from": sender_name,
+                "email": sender_email,
+                "subject": subject,
+                "sent_at": datetime.now(timezone.utc).isoformat()
+            }
+        }), 200
+    except Exception as e:
+        logger.error(f"Failed to send feedback: {str(e)}")
+        return jsonify({"error": "Failed to send feedback. Please try again later."}), 500
+
+
+@app.get("/api/docs")
+def api_documentation():
+    """
+    API Documentation - Lists all available endpoints with descriptions
+    """
+    endpoints = []
+    
+    for rule in app.url_map.iter_rules():
+        if rule.endpoint != 'static':
+            methods = ', '.join([m for m in rule.methods if m not in ['HEAD', 'OPTIONS']])
+            # Get docstring from the view function
+            view_func = app.view_functions.get(rule.endpoint)
+            description = view_func.__doc__.strip() if view_func and view_func.__doc__ else "No description"
+            
+            endpoints.append({
+                "endpoint": str(rule),
+                "methods": methods,
+                "description": description
+            })
+    
+    # Sort by endpoint path
+    endpoints.sort(key=lambda x: x['endpoint'])
+    
+    return jsonify({
+        "api_version": "1.0.0",
+        "total_endpoints": len(endpoints),
+        "endpoints": endpoints,
+        "documentation": {
+            "authentication": "Use Bearer token in Authorization header",
+            "rate_limits": {
+                "global": "200 requests/day, 50 requests/hour",
+                "login": "5 requests/minute",
+                "registration": "3 requests/minute"
+            },
+            "pagination": "Most list endpoints support ?page=1&per_page=20 parameters",
+            "response_format": "All responses are in JSON format"
+        }
+    }), 200
 
 
 # Initialize database on startup

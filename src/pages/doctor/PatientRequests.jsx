@@ -128,21 +128,26 @@ function PatientRequests() {
   };
 
   return (
-    <Box sx={{ bgcolor: isDark ? '#0F172A' : '#FAFAFA', minHeight: '100vh', py: 4 }}>
-      <Container maxWidth="lg">
+    <Box sx={{ 
+      bgcolor: isDark ? '#0F172A' : '#FAFAFA', 
+      minHeight: '100%',
+      width: '100%',
+      py: 3 
+    }}>
+      <Box sx={{ maxWidth: 1200, mx: 'auto', px: { xs: 2, sm: 3 } }}>
         <Fade in timeout={800}>
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="h3" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h4" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
               Patient Requests
             </Typography>
-            <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280' }}>
+            <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280', fontSize: '0.9375rem' }}>
               Review and respond to consultation requests
             </Typography>
           </Box>
         </Fade>
 
         {error && (
-          <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError('')}>
+          <Alert severity="error" sx={{ mb: 2.5 }} onClose={() => setError('')}>
             {error}
           </Alert>
         )}
@@ -151,9 +156,9 @@ function PatientRequests() {
           <Fade in timeout={600}>
             <Paper 
               sx={{ 
-                p: 16, 
+                p: 8, 
                 textAlign: 'center',
-                borderRadius: 3,
+                borderRadius: 2,
                 border: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E5E7EB'}`,
                 bgcolor: isDark ? '#1E293B' : '#FFFFFF',
                 boxShadow: 'none'
@@ -161,29 +166,29 @@ function PatientRequests() {
             >
               <Box sx={{ 
                 display: 'inline-flex', 
-                p: 8, 
+                p: 4, 
                 bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#F3F4F6', 
                 borderRadius: '50%', 
-                mb: 3 
+                mb: 2 
               }}>
-                <PersonIcon sx={{ fontSize: 48, color: isDark ? '#475569' : '#D1D5DB' }} />
+                <PersonIcon sx={{ fontSize: 40, color: isDark ? '#475569' : '#D1D5DB' }} />
               </Box>
-              <Typography variant="h4" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
+              <Typography variant="h5" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
                 No Pending Requests
               </Typography>
-              <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280', maxWidth: 448, mx: 'auto' }}>
+              <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280', fontSize: '0.9375rem', maxWidth: 448, mx: 'auto' }}>
                 New consultation requests will appear here
               </Typography>
             </Paper>
           </Fade>
         ) : (
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
             {requests.map((request, index) => (
               <Grid item xs={12} md={6} key={request.id}>
                 <Zoom in timeout={400 + (index * 100)}>
                   <Card 
                     sx={{ 
-                      borderRadius: 3, 
+                      borderRadius: 2, 
                       border: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E5E7EB'}`,
                       boxShadow: 'none',
                       bgcolor: isDark ? '#1E293B' : '#FFFFFF',
@@ -195,13 +200,13 @@ function PatientRequests() {
                       }
                     }}
                   >
-                    <CardContent sx={{ p: 3 }}>
-                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                    <CardContent sx={{ p: 2.5 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1.5 }}>
                         <Avatar 
                           src={request.patient_photo_url}
                           sx={{ 
-                            width: 56, 
-                            height: 56, 
+                            width: 48, 
+                            height: 48, 
                             bgcolor: isDark ? '#475569' : '#E5E7EB',
                             mr: 2,
                             fontSize: '1.5rem',
@@ -348,7 +353,7 @@ function PatientRequests() {
             ))}
           </Grid>
         )}
-      </Container>
+      </Box>
 
       <Dialog
         open={profileOpen}

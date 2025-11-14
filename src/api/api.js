@@ -5,7 +5,7 @@ const API_BASE_URL = rawApiBase.endsWith('/api')
 
 // Centralized API helper with automatic auth handling
 export const apiRequest = async (endpoint, options = {}) => {
-  const token = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('token')) || localStorage.getItem('token');
+  const token = sessionStorage.getItem('token') || localStorage.getItem('token');
   
   if (!token && !endpoint.includes('/auth/')) {
     throw new Error('Not authenticated. Please login again.');
@@ -42,9 +42,6 @@ export const apiRequest = async (endpoint, options = {}) => {
       const currentPath = window.location.pathname;
       if (!currentPath.includes('/auth')) {
         // Clear auth data
-        sessionStorage.removeItem('token');
-        sessionStorage.removeItem('user');
-        sessionStorage.removeItem('role');
         localStorage.removeItem('token');
         localStorage.removeItem('user');
         localStorage.removeItem('role');

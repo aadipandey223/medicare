@@ -7,7 +7,10 @@ import {
   Send as SendIcon, 
   Close as CloseIcon,
   Chat as MessageCircleIcon,
-  AccessTime as ClockIcon
+  AccessTime as ClockIcon,
+  Description as DescriptionIcon,
+  Download as DownloadIcon,
+  Visibility as VisibilityIcon
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
@@ -26,6 +29,11 @@ function ActiveConsultations() {
   const navigate = useNavigate();
   const { currentTheme } = useTheme();
   const isDark = currentTheme === 'dark';
+  // API base URL used in legacy fetch below
+  const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+  const API_BASE_URL = rawApiBase.endsWith('/api')
+    ? rawApiBase
+    : `${rawApiBase.replace(/\/$/, '')}/api`;
 
   useEffect(() => {
     fetchConsultations();
@@ -35,7 +43,7 @@ function ActiveConsultations() {
         markViewing(selectedConsultation.id);
       }
       fetchConsultations(true);
-    }, 2000);
+    }, 5000); // Optimized: Reduced from 2s to 5s polling
     return () => clearInterval(interval);
   }, [selectedConsultation]);
 
@@ -105,12 +113,26 @@ function ActiveConsultations() {
     }
   };
 
+  const [consultationDocuments, setConsultationDocuments] = useState([]);
+
   const fetchMessages = async (consultationId) => {
     try {
       const data = await apiRequest(`/consultation/${consultationId}/messages`);
-      setMessages(Array.isArray(data) ? data : []);
+      // Handle both old format (array) and new format (object with messages and documents)
+      if (Array.isArray(data)) {
+        setMessages(data);
+        setConsultationDocuments([]);
+      } else if (data && data.messages) {
+        setMessages(Array.isArray(data.messages) ? data.messages : []);
+        setConsultationDocuments(Array.isArray(data.documents) ? data.documents : []);
+      } else {
+        setMessages([]);
+        setConsultationDocuments([]);
+      }
     } catch (err) {
       // Silent fail for message fetching
+      setMessages([]);
+      setConsultationDocuments([]);
     }
   };
 
@@ -187,14 +209,14 @@ function ActiveConsultations() {
       <Box sx={{ 
         bgcolor: isDark ? '#1E293B' : '#FFFFFF',
         borderBottom: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E2E8F0'}`,
-        px: 6,
-        py: 3,
+        px: 3,
+        py: 2,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between'
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-          <Typography variant="h5" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#1E293B' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h5" fontWeight="600" sx={{ fontSize: '1.25rem', color: isDark ? '#F1F5F9' : '#1E293B' }}>
             Active Consultations
           </Typography>
         </Box>
@@ -384,8 +406,11 @@ function ActiveConsultations() {
               <Box sx={{ 
                 flex: 1, 
                 overflowY: 'auto', 
+                overflowX: 'hidden',
                 p: 6,
-                bgcolor: isDark ? '#0F172A' : '#F8FAFC'
+                bgcolor: isDark ? '#0F172A' : '#F8FAFC',
+                minHeight: 0, // Important for flex scrolling
+                maxHeight: '100%'
               }}>
                 {messages.length === 0 ? (
                   <Box sx={{ textAlign: 'center', py: 8 }}>
@@ -398,7 +423,101 @@ function ActiveConsultations() {
                     </Typography>
                   </Box>
                 ) : (
-                  messages.map((message) => {
+                  <>
+                    {/* Shared Documents Section */}
+                    {consultationDocuments && consultationDocuments.length > 0 && (
+                      <Box sx={{ mb: 4, p: 3, bgcolor: isDark ? 'rgba(30, 41, 59, 0.6)' : '#FFFFFF', borderRadius: 3, border: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E2E8F0'}` }}>
+                        <Typography variant="subtitle2" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#1E293B', mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                          <DescriptionIcon sx={{ fontSize: 20 }} />
+                          Shared Documents ({consultationDocuments.length})
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                          {consultationDocuments.map((doc) => (
+                            <Box
+                              key={doc.id}
+                              sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                p: 2,
+                                bgcolor: isDark ? 'rgba(15, 23, 42, 0.5)' : '#F8FAFC',
+                                borderRadius: 2,
+                                border: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E2E8F0'}`,
+                                '&:hover': {
+                                  bgcolor: isDark ? 'rgba(15, 23, 42, 0.7)' : '#F1F5F9',
+                                },
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0 }}>
+                                <DescriptionIcon sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: 24 }} />
+                                <Box sx={{ flex: 1, minWidth: 0 }}>
+                                  <Typography variant="body2" fontWeight="500" sx={{ color: isDark ? '#F1F5F9' : '#1E293B', mb: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                    {doc.file_name || 'Untitled Document'}
+                                  </Typography>
+                                  <Typography variant="caption" sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.75rem' }}>
+                                    {doc.file_size ? `${(doc.file_size / 1024 / 1024).toFixed(2)} MB` : ''} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : 'N/A'}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<VisibilityIcon />}
+                                  onClick={() => {
+                                    if (doc.download_url) {
+                                      window.open(doc.download_url, '_blank', 'noopener,noreferrer');
+                                    }
+                                  }}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.75rem',
+                                    borderColor: isDark ? 'rgba(59, 130, 246, 0.3)' : '#3B82F6',
+                                    color: isDark ? '#60A5FA' : '#3B82F6',
+                                    '&:hover': {
+                                      borderColor: isDark ? 'rgba(59, 130, 246, 0.5)' : '#2563EB',
+                                      bgcolor: isDark ? 'rgba(59, 130, 246, 0.1)' : '#EFF6FF',
+                                    },
+                                  }}
+                                >
+                                  View
+                                </Button>
+                                <Button
+                                  size="small"
+                                  variant="outlined"
+                                  startIcon={<DownloadIcon />}
+                                  onClick={() => {
+                                    if (doc.download_url) {
+                                      const link = document.createElement('a');
+                                      link.href = doc.download_url;
+                                      link.download = doc.file_name || 'document';
+                                      link.target = '_blank';
+                                      document.body.appendChild(link);
+                                      link.click();
+                                      document.body.removeChild(link);
+                                    }
+                                  }}
+                                  sx={{
+                                    textTransform: 'none',
+                                    fontSize: '0.75rem',
+                                    borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#10B981',
+                                    color: isDark ? '#34D399' : '#10B981',
+                                    '&:hover': {
+                                      borderColor: isDark ? 'rgba(16, 185, 129, 0.5)' : '#059669',
+                                      bgcolor: isDark ? 'rgba(16, 185, 129, 0.1)' : '#D1FAE5',
+                                    },
+                                  }}
+                                >
+                                  Download
+                                </Button>
+                              </Box>
+                            </Box>
+                          ))}
+                        </Box>
+                      </Box>
+                    )}
+                    {messages.map((message) => {
                     const isDoctor = message.sender_type === 'doctor';
                     return (
                       <Box
@@ -432,6 +551,32 @@ function ActiveConsultations() {
                             <Typography variant="body2" sx={{ fontSize: '0.875rem', lineHeight: 1.6 }}>
                               {message.content}
                             </Typography>
+                            {Array.isArray(message.attachments) && message.attachments.length > 0 && (
+                              <Box sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+                                {message.attachments.map((doc) => (
+                                  <Box key={doc.id} sx={{ display: 'flex', alignItems: 'center', gap: 1.25 }}>
+                                    <DescriptionIcon sx={{ fontSize: 18, opacity: 0.9 }} />
+                                    <Typography variant="body2" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                      {doc.file_name || 'Document'}
+                                    </Typography>
+                                    <Button
+                                      size="small"
+                                      variant="outlined"
+                                      startIcon={<VisibilityIcon />}
+                                      onClick={() => doc.download_url && window.open(doc.download_url, '_blank', 'noopener,noreferrer')}
+                                      sx={{
+                                        textTransform: 'none',
+                                        fontSize: '0.75rem',
+                                        borderColor: isDoctor ? 'rgba(255,255,255,0.7)' : (isDark ? 'rgba(59, 130, 246, 0.3)' : '#3B82F6'),
+                                        color: isDoctor ? '#fff' : (isDark ? '#60A5FA' : '#3B82F6'),
+                                      }}
+                                    >
+                                      View
+                                    </Button>
+                                  </Box>
+                                ))}
+                              </Box>
+                            )}
                           </Box>
                           <Typography 
                             variant="caption" 
@@ -447,7 +592,8 @@ function ActiveConsultations() {
                         </Box>
                       </Box>
                     );
-                  })
+                  })}
+                </>
                 )}
                 <div ref={messagesEndRef} />
               </Box>

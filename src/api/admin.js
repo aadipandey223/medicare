@@ -3,7 +3,7 @@ const API_BASE_URL = rawApiBase.endsWith('/api')
   ? rawApiBase
   : `${rawApiBase.replace(/\/$/, '')}/api`;
 
-const authHeaders = () => {
+const getAuthHeaders = () => {
   const token = sessionStorage.getItem('token') || localStorage.getItem('token');
   return {
     'Content-Type': 'application/json',

@@ -126,14 +126,14 @@ function DoctorPatients() {
   }
 
   return (
-    <Box sx={{ bgcolor: isDark ? '#0F172A' : '#FAFAFA', minHeight: '100vh', py: 4 }}>
-      <Container maxWidth="lg">
+    <Box sx={{ bgcolor: isDark ? '#0F172A' : '#FAFAFA', height: '100%', overflow: 'auto', py: 3 }}>
+      <Box sx={{ maxWidth: 1200, mx: 'auto', px: { xs: 2, sm: 3 } }}>
         <Fade in timeout={800}>
-          <Box sx={{ mb: 6 }}>
-            <Typography variant="h3" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
+          <Box sx={{ mb: 4 }}>
+            <Typography variant="h4" fontWeight="600" sx={{ color: isDark ? '#F1F5F9' : '#111827', mb: 1 }}>
               Patient Management
             </Typography>
-            <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280' }}>
+            <Typography variant="body1" sx={{ color: isDark ? '#94A3B8' : '#6B7280', fontSize: '0.9375rem' }}>
               View and manage all your patients
             </Typography>
           </Box>
@@ -141,15 +141,15 @@ function DoctorPatients() {
 
         <Paper 
           sx={{ 
-            borderRadius: 3,
+            borderRadius: 2,
             border: `1px solid ${isDark ? 'rgba(30, 41, 59, 0.8)' : '#E5E7EB'}`,
             bgcolor: isDark ? '#1E293B' : '#FFFFFF',
             boxShadow: 'none',
-            mb: 3
+            mb: 2.5
           }}
         >
-          <Box sx={{ p: 3 }}>
-            <Box sx={{ display: 'flex', gap: 1.5, mb: 3 }}>
+          <Box sx={{ p: 2.5 }}>
+            <Box sx={{ display: 'flex', gap: 1.5, mb: 2.5 }}>
               <Button
                 variant={tab === 0 ? 'contained' : 'text'}
                 onClick={() => setTab(0)}
@@ -167,7 +167,7 @@ function DoctorPatients() {
                   }
                 }}
               >
-                All Patients ({patients.length})
+                Active Patients ({patients.length})
               </Button>
               <Button
                 variant={tab === 1 ? 'contained' : 'text'}
@@ -339,7 +339,7 @@ function DoctorPatients() {
             ))}
           </Grid>
         )}
-      </Container>
+      </Box>
 
       <Dialog 
         open={profileOpen} 

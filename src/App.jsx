@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider as MuiThemeProvider, CssBaseline, Box, CircularProgress } from '@mui/material';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -25,6 +25,7 @@ const ActiveConsultations = lazy(() => import('./pages/doctor/ActiveConsultation
 const DoctorPatients = lazy(() => import('./pages/doctor/DoctorPatients'));
 const DoctorReports = lazy(() => import('./pages/doctor/DoctorReports'));
 const DoctorSettings = lazy(() => import('./pages/doctor/DoctorSettings'));
+const DoctorNotifications = lazy(() => import('./pages/doctor/DoctorNotifications'));
 const AdminDashboard = lazy(() => import('./pages/admin/AdminDashboard'));
 const AdminDoctors = lazy(() => import('./pages/admin/AdminDoctors'));
 const AdminPatients = lazy(() => import('./pages/admin/AdminPatients'));
@@ -76,8 +77,23 @@ const ProtectedRoute = ({ children, requiredRole = null }) => {
 
 // App Routes Component
 const AppRoutes = () => {
-  const { isAuthenticated, loading, isDoctor, isAdmin } = useAuth();
+  const { isAuthenticated, loading, isDoctor, isAdmin, role } = useAuth();
   const { theme } = useTheme();
+
+  // Update document title based on role
+  useEffect(() => {
+    if (isAuthenticated) {
+      if (isAdmin) {
+        document.title = 'Medicare Admin Portal';
+      } else if (isDoctor) {
+        document.title = 'Medicare Doctor Portal';
+      } else {
+        document.title = 'Medicare Patient Portal';
+      }
+    } else {
+      document.title = 'Medicare Portal - Login';
+    }
+  }, [isAuthenticated, isAdmin, isDoctor, role]);
 
   if (loading) {
     return (
@@ -127,6 +143,7 @@ const AppRoutes = () => {
               <Route path="/doctor/consultations" element={<ProtectedRoute requiredRole="doctor"><ActiveConsultations /></ProtectedRoute>} />
               <Route path="/doctor/patients" element={<ProtectedRoute requiredRole="doctor"><DoctorPatients /></ProtectedRoute>} />
               <Route path="/doctor/reports" element={<ProtectedRoute requiredRole="doctor"><DoctorReports /></ProtectedRoute>} />
+              <Route path="/doctor/notifications" element={<ProtectedRoute requiredRole="doctor"><DoctorNotifications /></ProtectedRoute>} />
               <Route path="/doctor/settings" element={<ProtectedRoute requiredRole="doctor"><DoctorSettings /></ProtectedRoute>} />
               <Route path="*" element={<Navigate to="/doctor/dashboard" replace />} />
             </Routes>

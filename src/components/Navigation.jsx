@@ -52,7 +52,7 @@ function Navigation({ children }) {
 
   useEffect(() => {
     refreshNotifications();
-    const interval = setInterval(refreshNotifications, 30000);
+    const interval = setInterval(refreshNotifications, 5000);
     return () => clearInterval(interval);
   }, [refreshNotifications]);
 
@@ -270,15 +270,15 @@ function Navigation({ children }) {
       }}
     >
       {/* Header - Fixed */}
-      <Box sx={{ p: 3, pb: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ p: 2, pb: 1.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         {/* Empty space - logo and title moved to AppBar */}
       </Box>
 
       {/* Patient Profile Card - Fixed */}
-      <Box sx={{ px: 3, mb: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ px: 2.5, mb: 1.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         <Paper
           sx={{
-            p: 2.5,
+            p: 2,
             borderRadius: 2,
             bgcolor: isDark ? 'rgba(30, 41, 59, 0.8)' : 'rgba(255, 255, 255, 0.9)',
             border: `1px solid ${isDark ? 'rgba(139, 92, 246, 0.2)' : 'rgba(226, 232, 240, 0.8)'}`,
@@ -294,17 +294,17 @@ function Navigation({ children }) {
             }
           }}
         >
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
             <Box sx={{ position: 'relative' }}>
               <Avatar 
                 src={user?.photo_url}
                 sx={{ 
-                  width: 56, 
-                  height: 56, 
+                  width: 48, 
+                  height: 48, 
                   bgcolor: 'linear-gradient(135deg, #8B5CF6 0%, #EC4899 100%)',
-                  fontSize: '1.25rem',
+                  fontSize: '1.1rem',
                   fontWeight: 700,
-                  border: `3px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.8)'}`,
+                  border: `2px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255, 255, 255, 0.8)'}`,
                   boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
                 }}
               >
@@ -312,10 +312,10 @@ function Navigation({ children }) {
               </Avatar>
             </Box>
             <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography variant="body1" fontWeight="700" noWrap sx={{ fontSize: '0.9rem', color: isDark ? '#F1F5F9' : '#1E293B', mb: 0.5 }}>
+              <Typography variant="body2" fontWeight="700" noWrap sx={{ fontSize: '0.85rem', color: isDark ? '#F1F5F9' : '#1E293B', mb: 0.25 }}>
                 {user?.name || 'Patient'}
               </Typography>
-              <Typography variant="caption" noWrap sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.75rem', display: 'block', mb: 0.5 }}>
+              <Typography variant="caption" noWrap sx={{ color: isDark ? '#94A3B8' : '#64748B', fontSize: '0.7rem', display: 'block' }}>
                 {user?.email || 'patient@medicare.com'}
               </Typography>
             </Box>
@@ -323,37 +323,37 @@ function Navigation({ children }) {
         </Paper>
       </Box>
 
-      <Divider sx={{ mx: 3, opacity: 0.2, mb: 1, flexShrink: 0 }} />
+      <Divider sx={{ mx: 2.5, opacity: 0.2, mb: 1, flexShrink: 0 }} />
 
       {/* Scrollable Content Area */}
       <Box sx={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <Box sx={{ flex: 1, overflow: 'auto', px: 2.5, position: 'relative', zIndex: 1 }}>
+        <Box sx={{ flex: 1, overflow: 'auto', px: 2, position: 'relative', zIndex: 1 }}>
           {/* Navigation Menu */}
           <Typography variant="caption" sx={{ 
-            px: 2, 
-            mb: 1.5, 
+            px: 1.5, 
+            mb: 1, 
             display: 'block',
             color: isDark ? '#64748B' : '#94A3B8',
-            fontSize: '0.7rem',
+            fontSize: '0.65rem',
             fontWeight: 700,
             textTransform: 'uppercase',
             letterSpacing: '0.05em'
           }}>
             Menu
           </Typography>
-          <List sx={{ p: 0, mb: 2 }}>
+          <List sx={{ p: 0, mb: 1.5 }}>
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               const colorStyles = getColorStyles(item.color, isActive);
               return (
-                <ListItem key={item.text} disablePadding sx={{ mb: 0.75 }}>
+                <ListItem key={item.text} disablePadding sx={{ mb: 0.5 }}>
                   <ListItemButton
                     onClick={() => handleNavigation(item.path)}
                     sx={{
-                      borderRadius: 2,
-                      minHeight: 48,
-                      px: 2,
-                      py: 1.5,
+                      borderRadius: 1.5,
+                      minHeight: 44,
+                      px: 1.5,
+                      py: 1.25,
                       bgcolor: colorStyles.bg,
                       border: `1px solid ${colorStyles.border}`,
                       transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -385,16 +385,16 @@ function Navigation({ children }) {
                     }}
                   >
                     <ListItemIcon sx={{ 
-                      minWidth: 44,
+                      minWidth: 40,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
                       <Box
                         sx={{
-                          width: 40,
-                          height: 40,
-                          borderRadius: 1.5,
+                          width: 36,
+                          height: 36,
+                          borderRadius: 1.25,
                           bgcolor: colorStyles.icon,
                           display: 'flex',
                           alignItems: 'center',
@@ -412,18 +412,18 @@ function Navigation({ children }) {
                             color="error"
                             sx={{
                               '& .MuiBadge-badge': {
-                                fontSize: '0.65rem',
-                                minWidth: 18,
-                                height: 18,
+                                fontSize: '0.6rem',
+                                minWidth: 16,
+                                height: 16,
                                 borderRadius: '50%',
                                 animation: 'bounce 2s infinite',
                               }
                             }}
                           >
-                            {item.icon}
+                            {React.cloneElement(item.icon, { sx: { fontSize: 18 } })}
                           </Badge>
                         ) : (
-                          item.icon
+                          React.cloneElement(item.icon, { sx: { fontSize: 18 } })
                         )}
                       </Box>
                     </ListItemIcon>
@@ -431,7 +431,7 @@ function Navigation({ children }) {
                       primary={item.text}
                       primaryTypographyProps={{
                         fontWeight: isActive ? 700 : 600,
-                        fontSize: '0.875rem',
+                        fontSize: '0.8125rem',
                         color: colorStyles.text,
                       }}
                     />
@@ -443,17 +443,17 @@ function Navigation({ children }) {
         </Box>
       </Box>
 
-      <Divider sx={{ mx: 3, opacity: 0.2, flexShrink: 0 }} />
+      <Divider sx={{ mx: 2.5, opacity: 0.2, flexShrink: 0 }} />
 
       {/* Logout Button - Fixed */}
-      <Box sx={{ p: 2.5, position: 'relative', zIndex: 1, flexShrink: 0 }}>
+      <Box sx={{ p: 2, position: 'relative', zIndex: 1, flexShrink: 0 }}>
         <ListItemButton
           onClick={handleLogout}
           sx={{
-            borderRadius: 2,
-            minHeight: 48,
-            px: 2,
-            py: 1.5,
+            borderRadius: 1.5,
+            minHeight: 44,
+            px: 1.5,
+            py: 1.25,
             bgcolor: isDark ? 'rgba(30, 41, 59, 0.5)' : 'rgba(255, 255, 255, 0.9)',
             border: `1px solid ${isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(254, 226, 226, 0.8)'}`,
             transition: 'all 0.3s ease',
@@ -467,12 +467,12 @@ function Navigation({ children }) {
             },
           }}
         >
-          <ListItemIcon sx={{ minWidth: 44 }}>
+          <ListItemIcon sx={{ minWidth: 40 }}>
             <Box
               sx={{
-                width: 40,
-                height: 40,
-                borderRadius: 1.5,
+                width: 36,
+                height: 36,
+                borderRadius: 1.25,
                 bgcolor: isDark ? 'rgba(239, 68, 68, 0.2)' : 'rgba(254, 226, 226, 0.8)',
                 display: 'flex',
                 alignItems: 'center',
@@ -481,14 +481,14 @@ function Navigation({ children }) {
                 transition: 'all 0.3s ease',
               }}
             >
-              <LogoutIcon sx={{ fontSize: 20 }} />
+              <LogoutIcon sx={{ fontSize: 18 }} />
             </Box>
           </ListItemIcon>
           <ListItemText 
             primary="Logout"
             primaryTypographyProps={{
               fontWeight: 600,
-              fontSize: '0.875rem',
+              fontSize: '0.8125rem',
               color: isDark ? '#F87171' : '#DC2626',
             }}
           />
@@ -518,7 +518,8 @@ function Navigation({ children }) {
           ml: { sm: `${drawerOpen ? sidebarWidth : 0}px` },
           transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
           overflow: 'hidden',
-          minHeight: '56px',
+          height: '64px',
+          minHeight: '64px',
         }}
       >
         {/* Animated Gradient Line */}
@@ -544,8 +545,10 @@ function Navigation({ children }) {
         />
         <Toolbar sx={{ 
           px: { xs: 2, sm: 3 }, 
-          py: 1, 
-          minHeight: '56px !important', 
+          py: 0, 
+          height: '64px',
+          minHeight: '64px !important', 
+          maxHeight: '64px',
           position: 'relative', 
           zIndex: 1,
           alignItems: 'center',
@@ -561,8 +564,8 @@ function Navigation({ children }) {
             <Box
               onClick={() => navigate('/dashboard')}
               sx={{
-                p: 1.5,
-                borderRadius: 2,
+                p: 1,
+                borderRadius: 1.5,
                 border: `2px solid ${isDark ? 'rgba(139, 92, 246, 0.4)' : 'rgba(139, 92, 246, 0.3)'}`,
                 position: 'relative',
                 overflow: 'hidden',
@@ -570,6 +573,10 @@ function Navigation({ children }) {
                   ? 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%)'
                   : 'linear-gradient(135deg, rgba(248, 250, 252, 0.8) 0%, rgba(255, 255, 255, 0.8) 100%)',
                 cursor: 'pointer',
+                height: '48px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 '&::before': {
                   content: '""',
                   position: 'absolute',
@@ -596,7 +603,7 @@ function Navigation({ children }) {
                 src="/logo.svg"
                 alt="MediCare Logo"
                 sx={{
-                  height: 40,
+                  height: 32,
                   width: 'auto',
                   position: 'relative',
                   zIndex: 1,
@@ -621,12 +628,12 @@ function Navigation({ children }) {
               onClick={() => navigate('/dashboard')}
             >
               <Typography 
-                variant="h4" 
+                variant="h5" 
                 component="div"
                 sx={{ 
-                  fontSize: '1.5rem',
+                  fontSize: '1.25rem',
                   fontWeight: 800,
-                  lineHeight: 1.1,
+                  lineHeight: 1.2,
                   mb: 0.25,
                   background: isDark
                     ? 'linear-gradient(135deg, #A78BFA 0%, #EC4899 50%, #FBBF24 100%)'
@@ -644,7 +651,7 @@ function Navigation({ children }) {
                 variant="caption" 
                 component="div"
                 sx={{ 
-                  fontSize: '0.7rem',
+                  fontSize: '0.65rem',
                   fontWeight: 500,
                   color: isDark ? '#94A3B8' : '#64748B',
                   letterSpacing: '0.05em',
@@ -664,11 +671,12 @@ function Navigation({ children }) {
             transform: 'translateY(-50%)',
             display: 'flex', 
             alignItems: 'center', 
-            gap: 1 
+            gap: 0.5 
           }}>
             {/* Dark/Light Mode Toggle */}
             <IconButton
               onClick={toggleTheme}
+              size="small"
               sx={{
                 color: isDark ? '#FBBF24' : '#1E293B',
                 '&:hover': {
@@ -676,12 +684,13 @@ function Navigation({ children }) {
                 }
               }}
             >
-              {isDark ? <Brightness7 /> : <Brightness4 />}
+              {isDark ? <Brightness7 fontSize="small" /> : <Brightness4 fontSize="small" />}
             </IconButton>
 
             {/* Notifications */}
             <IconButton
               onClick={() => navigate('/notifications')}
+              size="small"
               sx={{
                 color: isDark ? '#A78BFA' : '#8B5CF6',
                 '&:hover': {
@@ -693,14 +702,15 @@ function Navigation({ children }) {
                 badgeContent={notificationSummary.unread > 0 ? notificationSummary.unread : null} 
                 color="error"
               >
-                <NotificationsIcon />
+                <NotificationsIcon fontSize="small" />
               </Badge>
             </IconButton>
 
             <IconButton 
               onClick={handleMenuClick}
+              size="small"
               sx={{
-                p: 0.5,
+                p: 0.25,
                 '&:hover': {
                   bgcolor: 'transparent'
                 }
@@ -710,8 +720,9 @@ function Navigation({ children }) {
                 src={user?.photo_url} 
                 sx={{ 
                   bgcolor: isDark ? '#8B5CF6' : '#EC4899', 
-                  width: 36, 
-                  height: 36,
+                  width: 32, 
+                  height: 32,
+                  fontSize: '0.875rem',
                   border: `2px solid ${isDark ? 'rgba(139, 92, 246, 0.3)' : 'rgba(226, 232, 240, 0.8)'}`,
                   '&:hover': {
                     borderColor: isDark ? '#A78BFA' : '#8B5CF6',
@@ -813,7 +824,7 @@ function Navigation({ children }) {
         onClick={handleDrawerToggle}
         sx={{
           position: 'fixed',
-          top: 68,
+          top: 72,
           left: drawerOpen ? { sm: `${sidebarWidth - 24}px` } : -24,
           zIndex: 1400,
           width: 48,
@@ -851,14 +862,14 @@ function Navigation({ children }) {
           flexGrow: 1,
           width: { sm: drawerOpen ? `calc(100% - ${sidebarWidth}px)` : '100%' },
           marginLeft: { sm: drawerOpen ? `${sidebarWidth}px` : 0 },
-          marginTop: '56px',
+          marginTop: '64px',
           transition: 'width 300ms cubic-bezier(0.4, 0, 0.2, 1), margin-left 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-          minHeight: 'calc(100vh - 56px)',
+          height: 'calc(100vh - 64px)',
+          maxHeight: 'calc(100vh - 64px)',
+          overflow: 'auto',
           bgcolor: isDark ? '#0F172A' : '#F8FAFC',
           padding: 0,
-          margin: 0,
           position: 'relative',
-          left: 0,
         }}
       >
         {children}

@@ -205,12 +205,12 @@ function Upload() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('description', description);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('description', description);
     if (targetFolderId) {
       formData.append('folder_id', targetFolderId.toString());
-    }
+      }
       
     setUploading(true);
     setUploadProgress(0);
@@ -246,8 +246,8 @@ function Upload() {
       
       // Refresh after a short delay
       setTimeout(async () => {
-        await refreshDocuments();
-        await refreshFolders();
+      await refreshDocuments();
+      await refreshFolders();
       }, 500);
     } catch (err) {
       console.error('Upload error:', err);
@@ -363,8 +363,11 @@ function Upload() {
 
   return (
     <Box sx={{ 
-      minHeight: '100vh', 
-      py: 4,
+      height: '100%',
+      width: '100%',
+      py: 3,
+      px: { xs: 2, sm: 3 },
+      overflow: 'auto',
       background: isDark
         ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
         : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
@@ -390,7 +393,7 @@ function Upload() {
         '100%': { backgroundPosition: '0% 50%' },
       },
     }}>
-      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '1200px', mx: 'auto' }}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={4}>
             <Paper elevation={3} sx={{ 
@@ -515,7 +518,7 @@ function Upload() {
                     </Typography>
                   </Box>
                 )}
-                
+
                 <Button
                   type="submit"
                   variant="contained"
@@ -705,7 +708,7 @@ function Upload() {
             </Paper>
           </Grid>
         </Grid>
-      </Container>
+      </Box>
 
       <Dialog open={folderDialogOpen} onClose={() => setFolderDialogOpen(false)}>
         <DialogTitle>Create folder</DialogTitle>

@@ -320,20 +320,35 @@ function Settings() {
 
     setLoading(true);
     try {
-      // In a real app, this would send to backend
-      const emailBody = `
-From: ${user?.email}
-Subject: ${feedbackData.subject}
-
-${feedbackData.message}
-      `;
+      const rawApiBase = import.meta.env.VITE_API_URL || '/api';
+      const API_BASE_URL = rawApiBase.endsWith('/api')
+        ? rawApiBase
+        : `${rawApiBase.replace(/\/$/, '')}/api`;
       
-      // For now, just show success
-      setMessage({ type: 'success', text: 'Feedback sent successfully!' });
+      const token = sessionStorage.getItem('token') || localStorage.getItem('token');
+      const response = await fetch(`${API_BASE_URL}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          subject: feedbackData.subject,
+          message: feedbackData.message
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to send feedback');
+      }
+      
+      const result = await response.json();
+      setMessage({ type: 'success', text: result.message || 'Feedback sent successfully! We will contact you at ' + user?.email });
       setFeedbackData({ subject: '', message: '' });
       setFeedbackDialog(false);
     } catch (err) {
-      setMessage({ type: 'error', text: 'Failed to send feedback' });
+      setMessage({ type: 'error', text: err.message || 'Failed to send feedback' });
     } finally {
       setLoading(false);
     }
@@ -341,10 +356,11 @@ ${feedbackData.message}
 
   return (
     <Box sx={{ 
-      p: 3, 
-      maxWidth: 1000, 
-      mx: 'auto',
-      minHeight: '100vh',
+      height: '100%',
+      width: '100%',
+      py: 3,
+      px: { xs: 2, sm: 3 },
+      overflow: 'auto',
       background: isDark
         ? 'linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #0F172A 100%)'
         : 'linear-gradient(135deg, #F8FAFC 0%, #FFFFFF 50%, #F8FAFC 100%)',
@@ -370,14 +386,14 @@ ${feedbackData.message}
         '100%': { backgroundPosition: '0% 50%' },
       },
     }}>
-      <Box sx={{ position: 'relative', zIndex: 1 }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 4 }}>
+      <Box sx={{ position: 'relative', zIndex: 1, maxWidth: '1000px', mx: 'auto' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
           <BackButton />
-          <Typography variant="h4" fontWeight="bold" sx={{ 
-            color: isDark ? '#F1F5F9' : '#111827',
-          }}>
-            Settings
-          </Typography>
+        <Typography variant="h5" fontWeight="bold" sx={{ 
+          color: isDark ? '#F1F5F9' : '#111827',
+        }}>
+          Settings
+        </Typography>
         </Box>
 
       {message && (
@@ -544,20 +560,20 @@ ${feedbackData.message}
                   <CircularProgress />
                 </Box>
               ) : documents.length === 0 ? (
-                <Card variant="outlined" sx={{ p: 3, textAlign: 'center', bgcolor: 'action.hover' }}>
-                  <Typography color="textSecondary" sx={{ mb: 2 }}>
-                    📁 No documents uploaded yet
-                  </Typography>
+              <Card variant="outlined" sx={{ p: 3, textAlign: 'center', bgcolor: 'action.hover' }}>
+                <Typography color="textSecondary" sx={{ mb: 2 }}>
+                  📁 No documents uploaded yet
+                </Typography>
                   <Button 
                     variant="contained"
                     onClick={() => window.location.href = '/upload'}
                   >
-                    Upload Document
-                  </Button>
-                </Card>
+                  Upload Document
+                </Button>
+              </Card>
               ) : (
                 <>
-                  <List>
+              <List>
                     {documents.map((doc) => {
                       const mimeType = doc.mime_type || doc.mime || '';
                       const isImage = mimeType.startsWith('image/');
@@ -565,36 +581,36 @@ ${feedbackData.message}
                       const canPreview = isImage || isPdf;
                       
                       return (
-                        <ListItem
+                <ListItem
                           key={doc.id}
-                          secondaryAction={
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                              <IconButton
-                                edge="end"
-                                color="primary"
-                                size="small"
+                  secondaryAction={
+                    <Box sx={{ display: 'flex', gap: 1 }}>
+                      <IconButton
+                        edge="end"
+                        color="primary"
+                        size="small"
                                 onClick={() => handleViewDocument(doc)}
                                 title={canPreview ? 'Preview' : 'View/Download'}
-                                sx={{ mr: 1 }}
-                              >
-                                <VisibilityIcon />
-                              </IconButton>
+                        sx={{ mr: 1 }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
                               <IconButton
-                                edge="end"
-                                color="error"
-                                size="small"
+                        edge="end"
+                        color="error"
+                        size="small"
                                 onClick={() => handleDeleteDocument(doc.id)}
                                 title="Delete"
-                              >
+                      >
                                 <DeleteIcon />
                               </IconButton>
-                            </Box>
-                          }
-                        >
-                          <ListItemIcon>
+                    </Box>
+                  }
+                >
+                  <ListItemIcon>
                             {getFileIcon(doc)}
-                          </ListItemIcon>
-                          <ListItemText
+                  </ListItemIcon>
+                  <ListItemText
                             primary={doc.file_name || doc.name || 'Document'}
                             secondary={
                               <>
@@ -606,11 +622,11 @@ ${feedbackData.message}
                                 {doc.file_size && ` • ${(doc.file_size / 1024 / 1024).toFixed(2)} MB`}
                               </>
                             }
-                          />
-                        </ListItem>
+                  />
+                </ListItem>
                       );
                     })}
-                  </List>
+              </List>
                 </>
               )}
             </Box>
