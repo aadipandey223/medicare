@@ -16,10 +16,12 @@
     "@emotion/react": "^11.11.1",
     "@emotion/styled": "^11.11.0",
     "@supabase/supabase-js": "^2.38.4",
+    "@react-oauth/google": "^0.12.1",
     "axios": "^1.6.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.2.1",
-    "vite": "^5.0.8"
+    "vite": "^5.0.8",
+    "@rollup/rollup-linux-x64-gnu": "^4.9.0"
   }
 }

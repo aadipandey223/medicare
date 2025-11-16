@@ -302,3 +302,400 @@ select::-moz-selection {
 .MuiInput-root:focus-within::after {
   border-color: inherit !important;
 }
+
+/* ========================================== */
+/* MOBILE & TABLET RESPONSIVE STYLES */
+/* ========================================== */
+
+/* Base mobile-friendly settings */
+@media screen and (max-width: 1024px) {
+  body {
+    font-size: 14px;
+  }
+  
+  /* Improve touch targets */
+  button, a, [role="button"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+/* Tablet (768px - 1024px) */
+@media screen and (max-width: 1024px) and (min-width: 768px) {
+  /* Container adjustments */
+  .MuiContainer-root {
+    padding-left: 24px !important;
+    padding-right: 24px !important;
+  }
+  
+  /* Grid adjustments */
+  .MuiGrid-container {
+    margin: -12px !important;
+  }
+  
+  .MuiGrid-item {
+    padding: 12px !important;
+  }
+  
+  /* Typography scaling */
+  h1, .MuiTypography-h1 {
+    font-size: 2rem !important;
+  }
+  
+  h2, .MuiTypography-h2 {
+    font-size: 1.75rem !important;
+  }
+  
+  h3, .MuiTypography-h3 {
+    font-size: 1.5rem !important;
+  }
+  
+  /* Cards and Paper */
+  .MuiCard-root, .MuiPaper-root {
+    border-radius: 12px !important;
+  }
+  
+  /* Dialogs and Modals */
+  .MuiDialog-paper {
+    margin: 16px !important;
+    max-width: calc(100% - 32px) !important;
+  }
+}
+
+/* Mobile (up to 768px) */
+@media screen and (max-width: 768px) {
+  /* Base layout */
+  body {
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
+  }
+  
+  /* Container adjustments */
+  .MuiContainer-root {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    max-width: 100% !important;
+  }
+  
+  /* Grid system - stack columns */
+  .MuiGrid-container {
+    margin: -8px !important;
+  }
+  
+  .MuiGrid-item {
+    padding: 8px !important;
+  }
+  
+  .MuiGrid-grid-xs-12,
+  .MuiGrid-grid-sm-12,
+  .MuiGrid-grid-md-6,
+  .MuiGrid-grid-md-4,
+  .MuiGrid-grid-md-3 {
+    max-width: 100% !important;
+    flex-basis: 100% !important;
+  }
+  
+  /* Typography - mobile optimized */
+  h1, .MuiTypography-h1 {
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+  }
+  
+  h2, .MuiTypography-h2 {
+    font-size: 1.5rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  h3, .MuiTypography-h3 {
+    font-size: 1.25rem !important;
+    line-height: 1.4 !important;
+  }
+  
+  h4, .MuiTypography-h4 {
+    font-size: 1.1rem !important;
+  }
+  
+  h5, .MuiTypography-h5 {
+    font-size: 1rem !important;
+  }
+  
+  h6, .MuiTypography-h6 {
+    font-size: 0.9rem !important;
+  }
+  
+  p, .MuiTypography-body1 {
+    font-size: 0.875rem !important;
+    line-height: 1.5 !important;
+  }
+  
+  /* Buttons - larger touch targets */
+  .MuiButton-root {
+    min-height: 48px !important;
+    font-size: 0.9rem !important;
+    padding: 10px 20px !important;
+  }
+  
+  .MuiIconButton-root {
+    padding: 12px !important;
+  }
+  
+  .MuiButton-sizeLarge {
+    min-height: 52px !important;
+  }
+  
+  /* Cards and Paper */
+  .MuiCard-root, .MuiPaper-root {
+    border-radius: 8px !important;
+    margin-bottom: 16px !important;
+  }
+  
+  .MuiCardContent-root {
+    padding: 16px !important;
+  }
+  
+  /* Tables - horizontal scroll */
+  .MuiTable-root {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  
+  .MuiTableCell-root {
+    padding: 12px 8px !important;
+    font-size: 0.8rem !important;
+  }
+  
+  /* Dialogs and Modals - full screen on mobile */
+  .MuiDialog-paper {
+    margin: 8px !important;
+    max-width: calc(100% - 16px) !important;
+    max-height: calc(100% - 16px) !important;
+    width: 100% !important;
+  }
+  
+  .MuiDialogTitle-root {
+    padding: 16px !important;
+    font-size: 1.25rem !important;
+  }
+  
+  .MuiDialogContent-root {
+    padding: 16px !important;
+  }
+  
+  .MuiDialogActions-root {
+    padding: 16px !important;
+  }
+  
+  /* Drawer - full width */
+  .MuiDrawer-paper {
+    width: 85% !important;
+    max-width: 320px !important;
+  }
+  
+  /* App Bar */
+  .MuiAppBar-root {
+    padding: 0 8px !important;
+  }
+  
+  .MuiToolbar-root {
+    min-height: 56px !important;
+    padding: 0 8px !important;
+  }
+  
+  /* Forms */
+  .MuiTextField-root,
+  .MuiFormControl-root {
+    margin-bottom: 16px !important;
+  }
+  
+  .MuiInputBase-root {
+    font-size: 16px !important; /* Prevents zoom on iOS */
+  }
+  
+  .MuiInputBase-input {
+    padding: 14px !important;
+  }
+  
+  .MuiInputLabel-root {
+    font-size: 0.9rem !important;
+  }
+  
+  /* Chips */
+  .MuiChip-root {
+    height: 28px !important;
+    font-size: 0.75rem !important;
+  }
+  
+  /* Tabs */
+  .MuiTab-root {
+    min-width: 90px !important;
+    font-size: 0.85rem !important;
+    padding: 12px 16px !important;
+  }
+  
+  .MuiTabs-scrollButtons {
+    width: 32px !important;
+  }
+  
+  /* Lists */
+  .MuiListItem-root {
+    padding: 12px 16px !important;
+  }
+  
+  .MuiListItemText-primary {
+    font-size: 0.9rem !important;
+  }
+  
+  .MuiListItemText-secondary {
+    font-size: 0.8rem !important;
+  }
+  
+  /* Avatars */
+  .MuiAvatar-root {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  
+  /* Spacing utilities */
+  .MuiBox-root {
+    padding: 16px !important;
+  }
+  
+  /* Navigation spacing */
+  nav .MuiButton-root {
+    margin: 4px !important;
+    padding: 8px 12px !important;
+  }
+  
+  /* Hide scrollbar on mobile for cleaner look */
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+  
+  /* Improve text selection on mobile */
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+  }
+  
+  /* Prevent text from being too small */
+  * {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+}
+
+/* Extra small mobile (up to 480px) */
+@media screen and (max-width: 480px) {
+  /* Even more compact */
+  .MuiContainer-root {
+    padding-left: 12px !important;
+    padding-right: 12px !important;
+  }
+  
+  h1, .MuiTypography-h1 {
+    font-size: 1.5rem !important;
+  }
+  
+  h2, .MuiTypography-h2 {
+    font-size: 1.25rem !important;
+  }
+  
+  .MuiButton-root {
+    font-size: 0.85rem !important;
+    padding: 8px 16px !important;
+  }
+  
+  .MuiCardContent-root {
+    padding: 12px !important;
+  }
+  
+  .MuiTableCell-root {
+    padding: 8px 4px !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+/* Landscape mobile optimization */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .MuiDialog-paper {
+    max-height: 90vh !important;
+  }
+  
+  .MuiAppBar-root {
+    display: none; /* Hide app bar in landscape for more space */
+  }
+}
+
+/* Touch-friendly improvements */
+@media (hover: none) and (pointer: coarse) {
+  /* Touch devices */
+  button, a, [role="button"], .MuiIconButton-root {
+    cursor: pointer !important;
+  }
+  
+  /* Remove hover effects on touch devices */
+  .MuiButton-root:hover,
+  .MuiIconButton-root:hover {
+    background-color: inherit;
+  }
+  
+  /* Larger touch targets */
+  .MuiCheckbox-root,
+  .MuiRadio-root,
+  .MuiSwitch-root {
+    padding: 12px !important;
+  }
+}
+
+/* Print optimization */
+@media print {
+  /* Hide non-essential elements */
+  .MuiAppBar-root,
+  .MuiDrawer-root,
+  .MuiFab-root,
+  button {
+    display: none !important;
+  }
+  
+  /* Optimize for print */
+  body {
+    background: white !important;
+  }
+  
+  .MuiCard-root,
+  .MuiPaper-root {
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+}
+
+/* Accessibility improvements for mobile */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* High contrast mode for better readability */
+@media (prefers-contrast: high) {
+  .MuiButton-root,
+  .MuiCard-root,
+  .MuiPaper-root {
+    border: 2px solid currentColor !important;
+  }
+}
+
+/* Force hardware acceleration for smooth animations on mobile */
+.MuiCard-root,
+.MuiPaper-root,
+.MuiDialog-paper,
+.MuiDrawer-paper {
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
